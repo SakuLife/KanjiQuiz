@@ -4,7 +4,7 @@
 
 ## システム概要
 
-- **自動実行**: 毎日 20:00 JST に実行
+- **自動実行**: 毎日 17:00 JST に実行（20:00予約投稿のため）
 - **手動実行**: GitHub ActionsのWorkflow Dispatch
 - **実行環境**: Ubuntu Latest (Python 3.11)
 - **処理内容**: 漢字クイズ動画の自動生成・YouTube投稿・分析
@@ -74,7 +74,7 @@ KanjiQuiz/
 ## ワークフロー詳細
 
 ### 実行スケジュール
-- **自動実行**: 毎日 11:00 UTC (20:00 JST)
+- **自動実行**: 毎日 08:00 UTC (17:00 JST)
 - **手動実行**: GitHub ActionsのWorkflow Dispatch
 
 ### 実行ステップ

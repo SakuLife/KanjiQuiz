@@ -2,8 +2,8 @@ name: KanjiQuiz Automation
 
 on:
   schedule:
-    # 毎日 20:00 JST (11:00 UTC) に実行
-    - cron: '0 11 * * *'
+    # 毎日 17:00 JST (08:00 UTC) に実行 - 20:00予約投稿のため
+    - cron: '0 8 * * *'
   workflow_dispatch:
     inputs:
       force_run:
