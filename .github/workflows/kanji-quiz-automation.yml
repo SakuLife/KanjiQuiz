@@ -1,0 +1,184 @@
+name: KanjiQuiz Automation
+
+on:
+  schedule:
+    # 毎日 20:00 JST (11:00 UTC) に実行
+    - cron: '0 11 * * *'
+  workflow_dispatch:
+    inputs:
+      force_run:
+        description: 'Force run even if already executed today'
+        required: false
+        default: 'false'
+        type: boolean
+
+env:
+  TZ: Asia/Tokyo
+
+jobs:
+  video-generation:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+        cache: 'pip'
+
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y ffmpeg
+        sudo apt-get install -y fonts-noto-cjk
+        sudo apt-get install -y xvfb
+
+    - name: Install Python dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
+    - name: Setup environment variables
+      run: |
+        echo "SPREADSHEET_ID=${{ secrets.SPREADSHEET_ID }}" >> $GITHUB_ENV
+        echo "GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}" >> $GITHUB_ENV
+        echo "DISCORD_WEBHOOK_URL=${{ secrets.DISCORD_WEBHOOK_URL }}" >> $GITHUB_ENV
+        echo "DISCORD_WEBHOOK_URL_ERROR=${{ secrets.DISCORD_WEBHOOK_URL_ERROR }}" >> $GITHUB_ENV
+        echo "YT_CLIENT_ID=${{ secrets.YT_CLIENT_ID }}" >> $GITHUB_ENV
+        echo "YT_CLIENT_SECRET=${{ secrets.YT_CLIENT_SECRET }}" >> $GITHUB_ENV
+        echo "YT_REFRESH_TOKEN=${{ secrets.YT_REFRESH_TOKEN }}" >> $GITHUB_ENV
+
+    - name: Setup Google Service Account
+      run: |
+        echo '${{ secrets.GCP_SA_JSON }}' > json/credentials.json
+        chmod 600 json/credentials.json
+
+    - name: Setup YouTube OAuth
+      run: |
+        echo '${{ secrets.YT_CLIENT_SECRET_JSON }}' > json/client_secret.json
+        chmod 600 json/client_secret.json
+
+    - name: Create required directories
+      run: |
+        mkdir -p logs
+        mkdir -p video
+        mkdir -p voice
+        mkdir -p temp
+
+    - name: Send start notification
+      run: |
+        python -c "
+        import os, requests, datetime
+        webhook_url = os.environ['DISCORD_WEBHOOK_URL']
+        now = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=9)))
+        message = {
+            'content': f'🚀 **KanjiQuiz自動生成開始**\n開始時刻: {now.strftime(\"%Y-%m-%d %H:%M JST\")}\n実行環境: GitHub Actions'
+        }
+        requests.post(webhook_url, json=message)
+        "
+
+    - name: Run KanjiQuiz automation
+      id: quiz_generation
+      continue-on-error: true
+      run: |
+        export DISPLAY=:99
+        Xvfb :99 -screen 0 1024x768x24 > /dev/null 2>&1 &
+        python run_quiz_bot.py --github-actions
+      env:
+        PYTHONPATH: ${{ github.workspace }}
+
+    - name: Upload artifacts on success
+      if: success()
+      uses: actions/upload-artifact@v4
+      with:
+        name: kanji-quiz-video-${{ github.run_number }}
+        path: |
+          video/*.mp4
+          video/*_thumbnail.jpg
+          logs/*.log
+        retention-days: 7
+
+    - name: Upload logs on failure
+      if: failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: kanji-quiz-logs-failed-${{ github.run_number }}
+        path: |
+          logs/*.log
+          temp/*.log
+        retention-days: 7
+
+    - name: Send completion notification
+      if: always()
+      run: |
+        python -c "
+        import os, requests, datetime
+        webhook_url = os.environ['DISCORD_WEBHOOK_URL_ERROR'] if '${{ steps.quiz_generation.outcome }}' == 'failure' else os.environ['DISCORD_WEBHOOK_URL']
+        now = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=9)))
+        status = '✅ 成功' if '${{ steps.quiz_generation.outcome }}' == 'success' else '❌ 失敗'
+        message = {
+            'content': f'📺 **KanjiQuiz自動生成完了**\nステータス: {status}\n完了時刻: {now.strftime(\"%Y-%m-%d %H:%M JST\")}\n実行ID: ${{ github.run_number }}'
+        }
+        requests.post(webhook_url, json=message)
+        "
+
+  metrics-collection:
+    runs-on: ubuntu-latest
+    needs: video-generation
+    if: always()
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+        cache: 'pip'
+
+    - name: Install Python dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
+    - name: Setup environment variables
+      run: |
+        echo "SPREADSHEET_ID=${{ secrets.SPREADSHEET_ID }}" >> $GITHUB_ENV
+        echo "DISCORD_WEBHOOK_URL=${{ secrets.DISCORD_WEBHOOK_URL }}" >> $GITHUB_ENV
+        echo "YT_CLIENT_ID=${{ secrets.YT_CLIENT_ID }}" >> $GITHUB_ENV
+        echo "YT_CLIENT_SECRET=${{ secrets.YT_CLIENT_SECRET }}" >> $GITHUB_ENV
+        echo "YT_REFRESH_TOKEN=${{ secrets.YT_REFRESH_TOKEN }}" >> $GITHUB_ENV
+
+    - name: Setup Google Service Account
+      run: |
+        echo '${{ secrets.GCP_SA_JSON }}' > json/credentials.json
+        chmod 600 json/credentials.json
+
+    - name: Setup YouTube OAuth
+      run: |
+        echo '${{ secrets.YT_CLIENT_SECRET_JSON }}' > json/client_secret.json
+        chmod 600 json/client_secret.json
+
+    - name: Run metrics collection
+      continue-on-error: true
+      run: |
+        python core/reporter.py --github-actions
+      env:
+        PYTHONPATH: ${{ github.workspace }}
+
+    - name: Send metrics notification
+      if: always()
+      run: |
+        python -c "
+        import os, requests, datetime
+        webhook_url = os.environ['DISCORD_WEBHOOK_URL']
+        now = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=9)))
+        message = {
+            'content': f'📊 **メトリクス収集完了**\n完了時刻: {now.strftime(\"%Y-%m-%d %H:%M JST\")}'
+        }
+        requests.post(webhook_url, json=message)
+        "
