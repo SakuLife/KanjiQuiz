@@ -51,6 +51,14 @@ jobs:
         echo "YT_CLIENT_SECRET=${{ secrets.YT_CLIENT_SECRET }}" >> $GITHUB_ENV
         echo "YT_REFRESH_TOKEN=${{ secrets.YT_REFRESH_TOKEN }}" >> $GITHUB_ENV
 
+    - name: Create required directories
+      run: |
+        mkdir -p json
+        mkdir -p logs
+        mkdir -p video
+        mkdir -p voice
+        mkdir -p temp
+
     - name: Setup Google Service Account
       run: |
         echo '${{ secrets.GCP_SA_JSON }}' > json/credentials.json
@@ -60,14 +68,6 @@ jobs:
       run: |
         echo '${{ secrets.YT_CLIENT_SECRET_JSON }}' > json/client_secret.json
         chmod 600 json/client_secret.json
-
-    - name: Create required directories
-      run: |
-        mkdir -p json
-        mkdir -p logs
-        mkdir -p video
-        mkdir -p voice
-        mkdir -p temp
 
     - name: Send start notification
       run: |
