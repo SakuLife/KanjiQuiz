@@ -63,6 +63,7 @@ jobs:
 
     - name: Create required directories
       run: |
+        mkdir -p json
         mkdir -p logs
         mkdir -p video
         mkdir -p voice
@@ -155,11 +156,13 @@ jobs:
 
     - name: Setup Google Service Account
       run: |
+        mkdir -p json
         echo '${{ secrets.GCP_SA_JSON }}' > json/credentials.json
         chmod 600 json/credentials.json
 
     - name: Setup YouTube OAuth
       run: |
+        mkdir -p json
         echo '${{ secrets.YT_CLIENT_SECRET_JSON }}' > json/client_secret.json
         chmod 600 json/client_secret.json
 
