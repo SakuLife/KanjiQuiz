@@ -33,6 +33,11 @@ def setup_logging():
 
 def check_virtual_env():
     """仮想環境の存在確認"""
+    # GitHub Actionsの場合はスキップ
+    if '--github-actions' in sys.argv:
+        logging.info("Skipping virtual environment check for GitHub Actions")
+        return True
+
     python_exe = Path("new_venv/Scripts/python.exe")
     if not python_exe.exists():
         logging.error("Virtual environment not found at %s", python_exe)
@@ -70,8 +75,13 @@ def setup_github_actions_env():
 def run_python_script(script_name, description):
     """Pythonスクリプトを実行"""
     logging.info("[%s] %s", script_name, description)
-    
-    python_exe = Path("new_venv/Scripts/python.exe")
+
+    # GitHub Actionsの場合はシステムPythonを使用
+    if '--github-actions' in sys.argv:
+        python_exe = "python"  # システムPython
+    else:
+        python_exe = Path("new_venv/Scripts/python.exe")
+
     script_path = Path("core") / script_name
     
     try:
@@ -115,9 +125,13 @@ def main():
     logging.info("Log file: %s", log_file)
     logging.info("=" * 50)
     
-    # 環境変数読み込み
-    load_env_file()
-    
+    # GitHub Actions環境チェック
+    if '--github-actions' in sys.argv:
+        setup_github_actions_env()
+    else:
+        # 環境変数読み込み
+        load_env_file()
+
     # 仮想環境チェック
     if not check_virtual_env():
         logging.error("Cannot continue without virtual environment")
