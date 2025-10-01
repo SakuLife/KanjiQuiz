@@ -46,7 +46,6 @@ jobs:
         echo "SPREADSHEET_ID=${{ secrets.SPREADSHEET_ID }}" >> $GITHUB_ENV
         echo "GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}" >> $GITHUB_ENV
         echo "DISCORD_WEBHOOK_URL=${{ secrets.DISCORD_WEBHOOK_URL }}" >> $GITHUB_ENV
-        echo "DISCORD_WEBHOOK_URL_ERROR=${{ secrets.DISCORD_WEBHOOK_URL_ERROR }}" >> $GITHUB_ENV
         echo "YT_CLIENT_ID=${{ secrets.YT_CLIENT_ID }}" >> $GITHUB_ENV
         echo "YT_CLIENT_SECRET=${{ secrets.YT_CLIENT_SECRET }}" >> $GITHUB_ENV
         echo "YT_REFRESH_TOKEN=${{ secrets.YT_REFRESH_TOKEN }}" >> $GITHUB_ENV
@@ -117,7 +116,7 @@ jobs:
       run: |
         python -c "
         import os, requests, datetime
-        webhook_url = os.environ['DISCORD_WEBHOOK_URL_ERROR'] if '${{ steps.quiz_generation.outcome }}' == 'failure' else os.environ['DISCORD_WEBHOOK_URL']
+        webhook_url = os.environ['DISCORD_WEBHOOK_URL']
         now = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=9)))
         status = '✅ 成功' if '${{ steps.quiz_generation.outcome }}' == 'success' else '❌ 失敗'
         message = {
