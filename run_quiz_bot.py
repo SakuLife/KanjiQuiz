@@ -35,7 +35,7 @@ def check_virtual_env():
     """仮想環境の存在確認"""
     # GitHub Actionsの場合はスキップ
     if '--github-actions' in sys.argv:
-        logging.info("Skipping virtual environment check for GitHub Actions")
+        logging.info("Skipping virtual environment check for GitHub Actions environment")
         return True
 
     python_exe = Path("new_venv/Scripts/python.exe")
