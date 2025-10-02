@@ -77,13 +77,17 @@ def run_python_script(script_name, description):
     logging.info("[%s] %s", script_name, description)
 
     # GitHub Actionsの場合はシステムPythonを使用
-    if '--github-actions' in sys.argv:
+    github_actions = '--github-actions' in sys.argv
+
+    if github_actions:
         python_exe = "python"  # システムPython
+        timeout_seconds = 600  # 10分
     else:
         python_exe = Path("new_venv/Scripts/python.exe")
+        timeout_seconds = 300  # 5分
 
     script_path = Path("core") / script_name
-    
+
     try:
         result = subprocess.run(
             [str(python_exe), str(script_path)],
@@ -91,23 +95,23 @@ def run_python_script(script_name, description):
             text=True,
             encoding='utf-8',
             errors='replace',  # Unicode エラーを置換文字で処理
-            timeout=300  # 5分タイムアウト
+            timeout=timeout_seconds
         )
-        
+
         if result.stdout:
             logging.info("STDOUT:\n%s", result.stdout)
         if result.stderr:
             logging.warning("STDERR:\n%s", result.stderr)
-            
+
         if result.returncode == 0:
             logging.info("%s completed successfully", description)
             return True
         else:
             logging.warning("%s failed with exit code %d", description, result.returncode)
             return False
-            
+
     except subprocess.TimeoutExpired:
-        timeout_min = 10 if github_actions else 5
+        timeout_min = timeout_seconds // 60
         logging.error("%s timed out after %d minutes", description, timeout_min)
         return False
     except Exception as e:
