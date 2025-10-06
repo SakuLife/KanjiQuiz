@@ -81,10 +81,10 @@ def run_python_script(script_name, description):
 
     if github_actions:
         python_exe = "python"  # システムPython
-        timeout_seconds = 600  # 10分
+        timeout_seconds = 1800  # 30分（完全実行のため）
     else:
         python_exe = Path("new_venv/Scripts/python.exe")
-        timeout_seconds = 300  # 5分
+        timeout_seconds = 600  # 10分
 
     script_path = Path("core") / script_name
 

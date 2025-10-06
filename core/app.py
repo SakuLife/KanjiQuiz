@@ -31,11 +31,15 @@ load_dotenv()
 GITHUB_ACTIONS_MODE = os.environ.get('GITHUB_ACTIONS_MODE', 'false').lower() == 'true'
 VOICEVOX_DISABLED = os.environ.get('VOICEVOX_DISABLED', 'false').lower() == 'true'
 
-# VOICEVOXのパス（ローカル実行時のみ）
-if not GITHUB_ACTIONS_MODE and not VOICEVOX_DISABLED:
-    VOICEVOX_ENGINE_PATH = r"D:\VOICEVOX\vv-engine\run.exe"
-else:
+# VOICEVOXのパス設定
+if VOICEVOX_DISABLED:
     VOICEVOX_ENGINE_PATH = None
+elif GITHUB_ACTIONS_MODE:
+    # GitHub Actionsでは環境変数から取得
+    VOICEVOX_ENGINE_PATH = os.environ.get('VOICEVOX_ENGINE_PATH', '/tmp/linux-x64/run')
+else:
+    # ローカル実行時はWindowsパス
+    VOICEVOX_ENGINE_PATH = r"D:\VOICEVOX\vv-engine\run.exe"
 
 def cleanup_voice_files(base_filename):
     """

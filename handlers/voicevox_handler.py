@@ -4,12 +4,14 @@ import time
 import subprocess
 import requests
 import signal
+import platform
 
 class VoicevoxHandler:
     def __init__(self, engine_path):
         self.engine_path = engine_path
         self.process = None
         self.base_url = "http://127.0.0.1:50021"
+        self.is_windows = platform.system() == "Windows"
 
     def start_engine(self):
         # VOICEVOXエンジンの存在確認
@@ -29,12 +31,16 @@ class VoicevoxHandler:
 
                 # 全てのVOICEVOXプロセスを強制終了
                 try:
-                    subprocess.run(["taskkill", "/F", "/IM", "run.exe"],
-                                 capture_output=True, check=False)
-                    subprocess.run(["taskkill", "/F", "/IM", "VOICEVOX.exe"],
-                                 capture_output=True, check=False)
-                    subprocess.run(["taskkill", "/F", "/IM", "VoicevoxEngine.exe"],
-                                 capture_output=True, check=False)
+                    if self.is_windows:
+                        subprocess.run(["taskkill", "/F", "/IM", "run.exe"],
+                                     capture_output=True, check=False)
+                        subprocess.run(["taskkill", "/F", "/IM", "VOICEVOX.exe"],
+                                     capture_output=True, check=False)
+                        subprocess.run(["taskkill", "/F", "/IM", "VoicevoxEngine.exe"],
+                                     capture_output=True, check=False)
+                    else:
+                        # Linux/macOSではpkillを使用
+                        subprocess.run(["pkill", "-f", "voicevox"], capture_output=True, check=False)
                     time.sleep(3)  # プロセス終了を待つ
                     print("INFO: Terminated existing VOICEVOX processes")
                 except Exception as e:
@@ -66,7 +72,11 @@ class VoicevoxHandler:
 
         print("INFO: Starting VOICEVOX engine...")
         try:
-            self.process = subprocess.Popen(self.engine_path, creationflags=subprocess.CREATE_NO_WINDOW)
+            # Windowsの場合はCREATE_NO_WINDOWフラグを使用
+            if self.is_windows:
+                self.process = subprocess.Popen(self.engine_path, creationflags=subprocess.CREATE_NO_WINDOW)
+            else:
+                self.process = subprocess.Popen([self.engine_path])
             for attempt in range(30):  # 15回 -> 30回に増加
                 try:
                     response = requests.get(self.base_url, timeout=3)  # 2秒 -> 3秒に増加
@@ -105,7 +115,10 @@ class VoicevoxHandler:
     def stop_engine(self):
         if self.process and self.process.poll() is None:
             print("INFO: Stopping VOICEVOX engine...")
-            self.process.send_signal(signal.CTRL_C_EVENT)
+            if self.is_windows:
+                self.process.send_signal(signal.CTRL_C_EVENT)
+            else:
+                self.process.terminate()  # Linux/macOSではSIGTERMを送信
             try:
                 self.process.wait(timeout=5)
                 print("INFO: VOICEVOX engine stopped gracefully.")
