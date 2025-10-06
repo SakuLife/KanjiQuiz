@@ -36,6 +36,7 @@ jobs:
         sudo apt-get install -y ffmpeg
         sudo apt-get install -y fonts-noto-cjk
         sudo apt-get install -y xvfb
+        sudo apt-get install -y p7zip-full
 
     - name: Install Python dependencies
       run: |
@@ -44,14 +45,15 @@ jobs:
 
     - name: Install VOICEVOX Engine
       run: |
-        echo "📦 VOICEVOX Engineのダウンロード開始..."
-        wget https://github.com/VOICEVOX/voicevox_engine/releases/download/0.14.8/voicevox_engine-linux-x64-0.14.8.zip -O /tmp/voicevox.zip
-        echo "📂 VOICEVOX Engineの解凍中..."
+        echo "📦 VOICEVOX Engine v0.24.1 ダウンロード開始..."
         cd /tmp
-        unzip voicevox.zip
-        chmod +x linux-x64/run
+        wget https://github.com/VOICEVOX/voicevox_engine/releases/download/0.24.1/voicevox_engine-linux-cpu-x64-0.24.1.7z.001
+        echo "📂 VOICEVOX Engineの解凍中..."
+        7z x voicevox_engine-linux-cpu-x64-0.24.1.7z.001
+        chmod +x linux-cpu-x64/run
+        ls -la linux-cpu-x64/
         echo "✅ VOICEVOX Engine インストール完了"
-        echo "VOICEVOX_ENGINE_PATH=/tmp/linux-x64/run" >> $GITHUB_ENV
+        echo "VOICEVOX_ENGINE_PATH=/tmp/linux-cpu-x64/run" >> $GITHUB_ENV
 
     - name: Setup environment variables
       run: |

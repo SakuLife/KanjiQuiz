@@ -36,7 +36,7 @@ if VOICEVOX_DISABLED:
     VOICEVOX_ENGINE_PATH = None
 elif GITHUB_ACTIONS_MODE:
     # GitHub Actionsでは環境変数から取得
-    VOICEVOX_ENGINE_PATH = os.environ.get('VOICEVOX_ENGINE_PATH', '/tmp/linux-x64/run')
+    VOICEVOX_ENGINE_PATH = os.environ.get('VOICEVOX_ENGINE_PATH', '/tmp/linux-cpu-x64/run')
 else:
     # ローカル実行時はWindowsパス
     VOICEVOX_ENGINE_PATH = r"D:\VOICEVOX\vv-engine\run.exe"
