@@ -45,10 +45,11 @@ jobs:
     - name: Install VOICEVOX Engine
       run: |
         echo "📦 VOICEVOX Engineのダウンロード開始..."
-        wget -q https://github.com/VOICEVOX/voicevox_engine/releases/download/0.14.8/voicevox_engine-linux-x64-0.14.8.zip -O /tmp/voicevox.zip
+        wget https://github.com/VOICEVOX/voicevox_engine/releases/download/0.14.8/voicevox_engine-linux-x64-0.14.8.zip -O /tmp/voicevox.zip
         echo "📂 VOICEVOX Engineの解凍中..."
-        unzip -q /tmp/voicevox.zip -d /tmp/
-        chmod +x /tmp/linux-x64/run
+        cd /tmp
+        unzip voicevox.zip
+        chmod +x linux-x64/run
         echo "✅ VOICEVOX Engine インストール完了"
         echo "VOICEVOX_ENGINE_PATH=/tmp/linux-x64/run" >> $GITHUB_ENV
 
@@ -86,15 +87,17 @@ jobs:
         echo "✅ YouTube認証トークンを配置しました"
 
     - name: Send start notification
+      continue-on-error: true
       run: |
         python -c "
         import os, requests, datetime
-        webhook_url = os.environ['DISCORD_WEBHOOK_URL']
-        now = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=9)))
-        message = {
-            'content': f'🚀 **KanjiQuiz自動生成開始**\n開始時刻: {now.strftime(\"%Y-%m-%d %H:%M JST\")}\n実行環境: GitHub Actions'
-        }
-        requests.post(webhook_url, json=message)
+        webhook_url = os.environ.get('DISCORD_WEBHOOK_URL', '')
+        if webhook_url:
+            now = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=9)))
+            message = {
+                'content': f'🚀 **KanjiQuiz自動生成開始**\n開始時刻: {now.strftime(\"%Y-%m-%d %H:%M JST\")}\n実行環境: GitHub Actions'
+            }
+            requests.post(webhook_url, json=message)
         "
 
     - name: Run KanjiQuiz automation
@@ -130,16 +133,18 @@ jobs:
 
     - name: Send completion notification
       if: always()
+      continue-on-error: true
       run: |
         python -c "
         import os, requests, datetime
-        webhook_url = os.environ['DISCORD_WEBHOOK_URL']
-        now = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=9)))
-        status = '✅ 成功' if '${{ steps.quiz_generation.outcome }}' == 'success' else '❌ 失敗'
-        message = {
-            'content': f'📺 **KanjiQuiz自動生成完了**\nステータス: {status}\n完了時刻: {now.strftime(\"%Y-%m-%d %H:%M JST\")}\n実行ID: ${{ github.run_number }}'
-        }
-        requests.post(webhook_url, json=message)
+        webhook_url = os.environ.get('DISCORD_WEBHOOK_URL', '')
+        if webhook_url:
+            now = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=9)))
+            status = '✅ 成功' if '${{ steps.quiz_generation.outcome }}' == 'success' else '❌ 失敗'
+            message = {
+                'content': f'📺 **KanjiQuiz自動生成完了**\nステータス: {status}\n完了時刻: {now.strftime(\"%Y-%m-%d %H:%M JST\")}\n実行ID: ${{ github.run_number }}'
+            }
+            requests.post(webhook_url, json=message)
         "
 
   metrics-collection:
@@ -191,13 +196,15 @@ jobs:
 
     - name: Send metrics notification
       if: always()
+      continue-on-error: true
       run: |
         python -c "
         import os, requests, datetime
-        webhook_url = os.environ['DISCORD_WEBHOOK_URL']
-        now = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=9)))
-        message = {
-            'content': f'📊 **メトリクス収集完了**\n完了時刻: {now.strftime(\"%Y-%m-%d %H:%M JST\")}'
-        }
-        requests.post(webhook_url, json=message)
+        webhook_url = os.environ.get('DISCORD_WEBHOOK_URL', '')
+        if webhook_url:
+            now = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=9)))
+            message = {
+                'content': f'📊 **メトリクス収集完了**\n完了時刻: {now.strftime(\"%Y-%m-%d %H:%M JST\")}'
+            }
+            requests.post(webhook_url, json=message)
         "
