@@ -37,6 +37,11 @@ jobs:
         sudo apt-get install -y fonts-noto-cjk
         sudo apt-get install -y xvfb
 
+    - name: Install Python dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
     - name: Install VOICEVOX Engine
       run: |
         echo "📦 VOICEVOX Engineのダウンロード開始..."
@@ -46,11 +51,6 @@ jobs:
         chmod +x /tmp/linux-x64/run
         echo "✅ VOICEVOX Engine インストール完了"
         echo "VOICEVOX_ENGINE_PATH=/tmp/linux-x64/run" >> $GITHUB_ENV
-
-    - name: Install Python dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install -r requirements.txt
 
     - name: Setup environment variables
       run: |
