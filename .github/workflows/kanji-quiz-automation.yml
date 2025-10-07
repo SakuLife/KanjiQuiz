@@ -84,9 +84,20 @@ jobs:
 
     - name: Setup YouTube Token Pickle
       run: |
-        echo '${{ secrets.YOUTUBE_TOKEN_PICKLE }}' | base64 -d > token.pickle
-        chmod 600 token.pickle
-        echo "✅ YouTube認証トークンを配置しました"
+        if [ -n "${{ secrets.YOUTUBE_TOKEN_PICKLE }}" ]; then
+          echo "📝 YouTube認証トークンをデコード中..."
+          echo '${{ secrets.YOUTUBE_TOKEN_PICKLE }}' | base64 -d > token.pickle
+          if [ -f token.pickle ]; then
+            chmod 600 token.pickle
+            echo "✅ YouTube認証トークンを配置しました ($(stat -f%z token.pickle 2>/dev/null || stat -c%s token.pickle) bytes)"
+          else
+            echo "❌ token.pickleファイルの作成に失敗しました"
+            exit 1
+          fi
+        else
+          echo "⚠️  YOUTUBE_TOKEN_PICKLE が設定されていません"
+          exit 1
+        fi
 
     - name: Send start notification
       continue-on-error: true
