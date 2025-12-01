@@ -87,33 +87,79 @@ jobs:
 
     - name: Setup Google Service Account
       run: |
-        if [ -z "${{ secrets.GCP_SA_JSON }}" ]; then
-          echo "❌ GCP_SA_JSON が設定されていません"
-          exit 1
-        fi
-        echo "${{ secrets.GCP_SA_JSON }}" > json/credentials.json
-        chmod 600 json/credentials.json
-        echo "✅ Google Service Account認証情報を配置しました"
-        # 検証: JSONファイルが有効か確認
-        if ! python3 -m json.tool json/credentials.json > /dev/null 2>&1; then
-          echo "❌ credentials.jsonが無効なJSON形式です"
-          exit 1
-        fi
+        python3 << 'PYTHON_SCRIPT'
+        import os
+        import json
+        
+        # SecretsからJSONを取得
+        gcp_sa_json = os.environ.get('GCP_SA_JSON', '')
+        
+        if not gcp_sa_json or gcp_sa_json == 'null':
+            print("❌ GCP_SA_JSON が設定されていません")
+            exit(1)
+        
+        # JSONファイルを書き込み
+        try:
+            # まずJSONとして検証
+            json_data = json.loads(gcp_sa_json)
+            
+            # ファイルに書き込み
+            os.makedirs('json', exist_ok=True)
+            with open('json/credentials.json', 'w', encoding='utf-8') as f:
+                json.dump(json_data, f, indent=2, ensure_ascii=False)
+            
+            os.chmod('json/credentials.json', 0o600)
+            print("✅ Google Service Account認証情報を配置しました")
+            print("✅ JSON形式の検証に成功しました")
+        except json.JSONDecodeError as e:
+            print(f"❌ credentials.jsonが無効なJSON形式です: {e}")
+            print("💡 ヒント: GCP_SA_JSONには、credentials.jsonファイルの内容全体をそのまま貼り付けてください")
+            print(f"📝 最初の100文字: {gcp_sa_json[:100]}")
+            exit(1)
+        except Exception as e:
+            print(f"❌ エラーが発生しました: {e}")
+            exit(1)
+        PYTHON_SCRIPT
+      env:
+        GCP_SA_JSON: ${{ secrets.GCP_SA_JSON }}
 
     - name: Setup YouTube OAuth
       run: |
-        if [ -z "${{ secrets.YT_CLIENT_SECRET_JSON }}" ]; then
-          echo "❌ YT_CLIENT_SECRET_JSON が設定されていません"
-          exit 1
-        fi
-        echo "${{ secrets.YT_CLIENT_SECRET_JSON }}" > json/client_secret.json
-        chmod 600 json/client_secret.json
-        echo "✅ YouTube OAuth認証情報を配置しました"
-        # 検証: JSONファイルが有効か確認
-        if ! python3 -m json.tool json/client_secret.json > /dev/null 2>&1; then
-          echo "❌ client_secret.jsonが無効なJSON形式です"
-          exit 1
-        fi
+        python3 << 'PYTHON_SCRIPT'
+        import os
+        import json
+        
+        # SecretsからJSONを取得
+        yt_client_secret_json = os.environ.get('YT_CLIENT_SECRET_JSON', '')
+        
+        if not yt_client_secret_json or yt_client_secret_json == 'null':
+            print("❌ YT_CLIENT_SECRET_JSON が設定されていません")
+            exit(1)
+        
+        # JSONファイルを書き込み
+        try:
+            # まずJSONとして検証
+            json_data = json.loads(yt_client_secret_json)
+            
+            # ファイルに書き込み
+            os.makedirs('json', exist_ok=True)
+            with open('json/client_secret.json', 'w', encoding='utf-8') as f:
+                json.dump(json_data, f, indent=2, ensure_ascii=False)
+            
+            os.chmod('json/client_secret.json', 0o600)
+            print("✅ YouTube OAuth認証情報を配置しました")
+            print("✅ JSON形式の検証に成功しました")
+        except json.JSONDecodeError as e:
+            print(f"❌ client_secret.jsonが無効なJSON形式です: {e}")
+            print("💡 ヒント: YT_CLIENT_SECRET_JSONには、client_secret.jsonファイルの内容全体をそのまま貼り付けてください")
+            print(f"📝 最初の100文字: {yt_client_secret_json[:100]}")
+            exit(1)
+        except Exception as e:
+            print(f"❌ エラーが発生しました: {e}")
+            exit(1)
+        PYTHON_SCRIPT
+      env:
+        YT_CLIENT_SECRET_JSON: ${{ secrets.YT_CLIENT_SECRET_JSON }}
 
     - name: Setup YouTube Token Pickle
       run: |
@@ -236,25 +282,55 @@ jobs:
 
     - name: Setup Google Service Account
       run: |
-        mkdir -p json
-        if [ -z "${{ secrets.GCP_SA_JSON }}" ]; then
-          echo "❌ GCP_SA_JSON が設定されていません"
-          exit 1
-        fi
-        echo "${{ secrets.GCP_SA_JSON }}" > json/credentials.json
-        chmod 600 json/credentials.json
-        echo "✅ Google Service Account認証情報を配置しました"
+        python3 << 'PYTHON_SCRIPT'
+        import os
+        import json
+        
+        gcp_sa_json = os.environ.get('GCP_SA_JSON', '')
+        
+        if not gcp_sa_json or gcp_sa_json == 'null':
+            print("❌ GCP_SA_JSON が設定されていません")
+            exit(1)
+        
+        try:
+            json_data = json.loads(gcp_sa_json)
+            os.makedirs('json', exist_ok=True)
+            with open('json/credentials.json', 'w', encoding='utf-8') as f:
+                json.dump(json_data, f, indent=2, ensure_ascii=False)
+            os.chmod('json/credentials.json', 0o600)
+            print("✅ Google Service Account認証情報を配置しました")
+        except Exception as e:
+            print(f"❌ エラー: {e}")
+            exit(1)
+        PYTHON_SCRIPT
+      env:
+        GCP_SA_JSON: ${{ secrets.GCP_SA_JSON }}
 
     - name: Setup YouTube OAuth
       run: |
-        mkdir -p json
-        if [ -z "${{ secrets.YT_CLIENT_SECRET_JSON }}" ]; then
-          echo "❌ YT_CLIENT_SECRET_JSON が設定されていません"
-          exit 1
-        fi
-        echo "${{ secrets.YT_CLIENT_SECRET_JSON }}" > json/client_secret.json
-        chmod 600 json/client_secret.json
-        echo "✅ YouTube OAuth認証情報を配置しました"
+        python3 << 'PYTHON_SCRIPT'
+        import os
+        import json
+        
+        yt_client_secret_json = os.environ.get('YT_CLIENT_SECRET_JSON', '')
+        
+        if not yt_client_secret_json or yt_client_secret_json == 'null':
+            print("❌ YT_CLIENT_SECRET_JSON が設定されていません")
+            exit(1)
+        
+        try:
+            json_data = json.loads(yt_client_secret_json)
+            os.makedirs('json', exist_ok=True)
+            with open('json/client_secret.json', 'w', encoding='utf-8') as f:
+                json.dump(json_data, f, indent=2, ensure_ascii=False)
+            os.chmod('json/client_secret.json', 0o600)
+            print("✅ YouTube OAuth認証情報を配置しました")
+        except Exception as e:
+            print(f"❌ エラー: {e}")
+            exit(1)
+        PYTHON_SCRIPT
+      env:
+        YT_CLIENT_SECRET_JSON: ${{ secrets.YT_CLIENT_SECRET_JSON }}
 
     - name: Run metrics collection
       continue-on-error: true
