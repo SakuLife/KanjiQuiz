@@ -39,7 +39,7 @@ elif GITHUB_ACTIONS_MODE:
     VOICEVOX_ENGINE_PATH = os.environ.get('VOICEVOX_ENGINE_PATH', '/tmp/linux-cpu-x64/run')
 else:
     # ローカル実行時はWindowsパス
-    VOICEVOX_ENGINE_PATH = r"D:\VOICEVOX\vv-engine\run.exe"
+    VOICEVOX_ENGINE_PATH = r"D:\App\VOICEVOX\vv-engine\run.exe"
 
 def cleanup_voice_files(base_filename):
     """
