@@ -11,9 +11,22 @@ on:
         required: false
         default: 'false'
         type: boolean
+  push:
+    branches:
+      - master
+      - main
+    paths-ignore:
+      - '**.md'
+      - '.gitignore'
+      - 'nul'
 
 env:
   TZ: Asia/Tokyo
+
+# GitHub Actionsの権限設定
+permissions:
+  contents: read
+  actions: read
 
 jobs:
   video-generation:
