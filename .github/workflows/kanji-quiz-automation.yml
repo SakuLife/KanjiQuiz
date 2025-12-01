@@ -87,28 +87,61 @@ jobs:
 
     - name: Setup Google Service Account
       run: |
-        echo '${{ secrets.GCP_SA_JSON }}' > json/credentials.json
+        if [ -z "${{ secrets.GCP_SA_JSON }}" ]; then
+          echo "❌ GCP_SA_JSON が設定されていません"
+          exit 1
+        fi
+        echo "${{ secrets.GCP_SA_JSON }}" > json/credentials.json
         chmod 600 json/credentials.json
+        echo "✅ Google Service Account認証情報を配置しました"
+        # 検証: JSONファイルが有効か確認
+        if ! python3 -m json.tool json/credentials.json > /dev/null 2>&1; then
+          echo "❌ credentials.jsonが無効なJSON形式です"
+          exit 1
+        fi
 
     - name: Setup YouTube OAuth
       run: |
-        echo '${{ secrets.YT_CLIENT_SECRET_JSON }}' > json/client_secret.json
+        if [ -z "${{ secrets.YT_CLIENT_SECRET_JSON }}" ]; then
+          echo "❌ YT_CLIENT_SECRET_JSON が設定されていません"
+          exit 1
+        fi
+        echo "${{ secrets.YT_CLIENT_SECRET_JSON }}" > json/client_secret.json
         chmod 600 json/client_secret.json
+        echo "✅ YouTube OAuth認証情報を配置しました"
+        # 検証: JSONファイルが有効か確認
+        if ! python3 -m json.tool json/client_secret.json > /dev/null 2>&1; then
+          echo "❌ client_secret.jsonが無効なJSON形式です"
+          exit 1
+        fi
 
     - name: Setup YouTube Token Pickle
       run: |
-        if [ -n "${{ secrets.YOUTUBE_TOKEN_PICKLE }}" ]; then
-          echo "📝 YouTube認証トークンをデコード中..."
-          echo '${{ secrets.YOUTUBE_TOKEN_PICKLE }}' | base64 -d > token.pickle
-          if [ -f token.pickle ]; then
+        if [ -z "${{ secrets.YOUTUBE_TOKEN_PICKLE }}" ]; then
+          echo "⚠️  YOUTUBE_TOKEN_PICKLE が設定されていません"
+          echo "⚠️  YouTube認証は初回実行時に手動で行う必要があります"
+          exit 0
+        fi
+        echo "📝 YouTube認証トークンをデコード中..."
+        # base64文字列から改行と空白を削除
+        TOKEN_B64=$(echo "${{ secrets.YOUTUBE_TOKEN_PICKLE }}" | tr -d '\n\r\t ')
+        if [ -z "$TOKEN_B64" ]; then
+          echo "❌ YOUTUBE_TOKEN_PICKLE が空です"
+          exit 1
+        fi
+        # base64デコード（エラーハンドリング付き）
+        if echo "$TOKEN_B64" | base64 -d > token.pickle 2>/dev/null; then
+          if [ -f token.pickle ] && [ -s token.pickle ]; then
             chmod 600 token.pickle
-            echo "✅ YouTube認証トークンを配置しました ($(stat -f%z token.pickle 2>/dev/null || stat -c%s token.pickle) bytes)"
+            FILE_SIZE=$(stat -c%s token.pickle 2>/dev/null || stat -f%z token.pickle 2>/dev/null || echo "unknown")
+            echo "✅ YouTube認証トークンを配置しました ($FILE_SIZE bytes)"
           else
-            echo "❌ token.pickleファイルの作成に失敗しました"
+            echo "❌ token.pickleファイルの作成に失敗しました（空のファイル）"
             exit 1
           fi
         else
-          echo "⚠️  YOUTUBE_TOKEN_PICKLE が設定されていません"
+          echo "❌ base64デコードに失敗しました"
+          echo "💡 ヒント: YOUTUBE_TOKEN_PICKLEは、encode_token.pyで生成したBase64文字列をそのまま貼り付けてください"
           exit 1
         fi
 
@@ -204,14 +237,24 @@ jobs:
     - name: Setup Google Service Account
       run: |
         mkdir -p json
-        echo '${{ secrets.GCP_SA_JSON }}' > json/credentials.json
+        if [ -z "${{ secrets.GCP_SA_JSON }}" ]; then
+          echo "❌ GCP_SA_JSON が設定されていません"
+          exit 1
+        fi
+        echo "${{ secrets.GCP_SA_JSON }}" > json/credentials.json
         chmod 600 json/credentials.json
+        echo "✅ Google Service Account認証情報を配置しました"
 
     - name: Setup YouTube OAuth
       run: |
         mkdir -p json
-        echo '${{ secrets.YT_CLIENT_SECRET_JSON }}' > json/client_secret.json
+        if [ -z "${{ secrets.YT_CLIENT_SECRET_JSON }}" ]; then
+          echo "❌ YT_CLIENT_SECRET_JSON が設定されていません"
+          exit 1
+        fi
+        echo "${{ secrets.YT_CLIENT_SECRET_JSON }}" > json/client_secret.json
         chmod 600 json/client_secret.json
+        echo "✅ YouTube OAuth認証情報を配置しました"
 
     - name: Run metrics collection
       continue-on-error: true
