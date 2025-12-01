@@ -60,8 +60,9 @@ def setup_github_actions_env():
     """GitHub Actions環境用の設定"""
     logging.info("Setting up GitHub Actions environment...")
 
-    # VOICEVOXはGitHub Actionsでは使用しない
-    os.environ['VOICEVOX_DISABLED'] = 'true'
+    # VOICEVOXエンジンはワークフローでインストールされるため、環境変数から取得
+    # VOICEVOX_ENGINE_PATHはワークフローで設定される
+    # VOICEVOX_DISABLEDは設定しない（VOICEVOXを使用する）
 
     # フォントパスをLinux用に設定
     os.environ['FONT_PATH_BOLD'] = '/usr/share/fonts/opentype/noto/NotoSansCJK-Bold.ttc'

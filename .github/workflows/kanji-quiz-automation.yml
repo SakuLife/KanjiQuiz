@@ -90,24 +90,24 @@ jobs:
         python3 << 'PYTHON_SCRIPT'
         import os
         import json
-        
+
         # SecretsからJSONを取得
         gcp_sa_json = os.environ.get('GCP_SA_JSON', '')
-        
+
         if not gcp_sa_json or gcp_sa_json == 'null':
             print("❌ GCP_SA_JSON が設定されていません")
             exit(1)
-        
+
         # JSONファイルを書き込み
         try:
             # まずJSONとして検証
             json_data = json.loads(gcp_sa_json)
-            
+
             # ファイルに書き込み
             os.makedirs('json', exist_ok=True)
             with open('json/credentials.json', 'w', encoding='utf-8') as f:
                 json.dump(json_data, f, indent=2, ensure_ascii=False)
-            
+
             os.chmod('json/credentials.json', 0o600)
             print("✅ Google Service Account認証情報を配置しました")
             print("✅ JSON形式の検証に成功しました")
@@ -128,24 +128,24 @@ jobs:
         python3 << 'PYTHON_SCRIPT'
         import os
         import json
-        
+
         # SecretsからJSONを取得
         yt_client_secret_json = os.environ.get('YT_CLIENT_SECRET_JSON', '')
-        
+
         if not yt_client_secret_json or yt_client_secret_json == 'null':
             print("❌ YT_CLIENT_SECRET_JSON が設定されていません")
             exit(1)
-        
+
         # JSONファイルを書き込み
         try:
             # まずJSONとして検証
             json_data = json.loads(yt_client_secret_json)
-            
+
             # ファイルに書き込み
             os.makedirs('json', exist_ok=True)
             with open('json/client_secret.json', 'w', encoding='utf-8') as f:
                 json.dump(json_data, f, indent=2, ensure_ascii=False)
-            
+
             os.chmod('json/client_secret.json', 0o600)
             print("✅ YouTube OAuth認証情報を配置しました")
             print("✅ JSON形式の検証に成功しました")
@@ -214,6 +214,7 @@ jobs:
         python run_quiz_bot.py --github-actions
       env:
         PYTHONPATH: ${{ github.workspace }}
+        VOICEVOX_ENGINE_PATH: ${{ env.VOICEVOX_ENGINE_PATH }}
 
     - name: Upload artifacts on success
       if: success()
@@ -285,13 +286,13 @@ jobs:
         python3 << 'PYTHON_SCRIPT'
         import os
         import json
-        
+
         gcp_sa_json = os.environ.get('GCP_SA_JSON', '')
-        
+
         if not gcp_sa_json or gcp_sa_json == 'null':
             print("❌ GCP_SA_JSON が設定されていません")
             exit(1)
-        
+
         try:
             json_data = json.loads(gcp_sa_json)
             os.makedirs('json', exist_ok=True)
@@ -311,13 +312,13 @@ jobs:
         python3 << 'PYTHON_SCRIPT'
         import os
         import json
-        
+
         yt_client_secret_json = os.environ.get('YT_CLIENT_SECRET_JSON', '')
-        
+
         if not yt_client_secret_json or yt_client_secret_json == 'null':
             print("❌ YT_CLIENT_SECRET_JSON が設定されていません")
             exit(1)
-        
+
         try:
             json_data = json.loads(yt_client_secret_json)
             os.makedirs('json', exist_ok=True)
