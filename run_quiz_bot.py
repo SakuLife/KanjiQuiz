@@ -16,9 +16,9 @@ def setup_logging():
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M")
     log_dir = Path("logs")
     log_dir.mkdir(exist_ok=True)
-    
+
     log_file = log_dir / f"quiz_bot_{timestamp}.log"
-    
+
     # ログ設定
     logging.basicConfig(
         level=logging.INFO,
@@ -28,7 +28,7 @@ def setup_logging():
             logging.StreamHandler(sys.stdout)
         ]
     )
-    
+
     return log_file
 
 def check_virtual_env():
@@ -122,14 +122,14 @@ def run_python_script(script_name, description):
 def main():
     """メイン実行関数"""
     print("Starting Kanji Quiz Bot...")
-    
+
     # ロギングセットアップ
     log_file = setup_logging()
     logging.info("=" * 50)
     logging.info("Kanji Quiz Bot - Python Runner")
     logging.info("Log file: %s", log_file)
     logging.info("=" * 50)
-    
+
     # GitHub Actions環境チェック
     if '--github-actions' in sys.argv:
         setup_github_actions_env()
@@ -141,19 +141,19 @@ def main():
     if not check_virtual_env():
         logging.error("Cannot continue without virtual environment")
         return 1
-    
+
     # 結果追跡
     app_success = False
     reporter_success = False
-    
+
     # Step 1: 動画生成
     logging.info("Step 1/2: Running video creation...")
     app_success = run_python_script("app.py", "Video creation")
-    
+
     # Step 2: 分析とレポート（app.pyが失敗しても実行）
     logging.info("Step 2/2: Running analysis and reporting...")
     reporter_success = run_python_script("reporter.py", "Analysis and reporting")
-    
+
     # 最終結果
     logging.info("=" * 50)
     if app_success and reporter_success:
@@ -163,15 +163,15 @@ def main():
         logging.info("STATUS: Analysis completed, but video creation had issues")
         final_exit = 1
     elif app_success:
-        logging.info("STATUS: Video creation completed, but analysis had issues") 
+        logging.info("STATUS: Video creation completed, but analysis had issues")
         final_exit = 1
     else:
         logging.info("STATUS: Both tasks had issues - check logs for details")
         final_exit = 2
-    
+
     logging.info("Log file saved: %s", log_file)
     logging.info("=" * 50)
-    
+
     print(f"\nExecution completed. Check log file: {log_file}")
     return final_exit
 

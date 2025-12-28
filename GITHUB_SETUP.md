@@ -139,4 +139,3 @@ fatal: repository 'https://github.com/SakuLife/KanjiQuiz.git/' not found
 
 **作成日**: 2025-01-XX
 **対象**: KanjiQuiz GitHub リポジトリセットアップ
-

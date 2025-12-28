@@ -38,6 +38,7 @@ env/
 json/credentials.json
 json/client_secret.json
 token.pickle
+token_base64.txt
 
 # Generated content
 video/*.mp4
@@ -51,11 +52,13 @@ temp/
 .idea/
 *.swp
 *.swo
+.claude/settings.local.json
 
 # OS
 .DS_Store
 Thumbs.db
 *.tmp
+nul
 
 # Archives
 archive/

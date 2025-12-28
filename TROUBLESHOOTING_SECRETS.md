@@ -181,7 +181,7 @@ Run echo '***' > json/client_secret.json
 
 ### Q: JSONファイルをコピーする際、改行は必要ですか？
 
-**A**: 
+**A**:
 - **credentials.json と client_secret.json**: 改行を含めてそのままコピーしてください
 - **YOUTUBE_TOKEN_PICKLE (Base64文字列)**: 改行を含めないでください（1行の長い文字列）
 
@@ -191,13 +191,13 @@ Run echo '***' > json/client_secret.json
 
 ### Q: Secretsの値が長すぎて貼り付けられない
 
-**A**: 
+**A**:
 - GitHub Secretsには長さ制限がありますが、通常のJSONファイルやBase64文字列は問題ありません
 - もし問題がある場合は、値が正しくコピーされているか確認してください
 
 ### Q: エンコード後のBase64文字列に改行が含まれている
 
-**A**: 
+**A**:
 - `encode_token.py` の出力は改行を含まない1行の文字列です
 - もし改行が含まれている場合は、手動で削除してください
 - または、出力をファイルに保存してからコピーする方法もあります：
@@ -210,4 +210,3 @@ Run echo '***' > json/client_secret.json
 
 **作成日**: 2025-01-XX
 **対象**: KanjiQuiz GitHub Secrets トラブルシューティング
-
