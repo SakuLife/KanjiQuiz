@@ -26,12 +26,50 @@ SCOPES = [
 def get_authenticated_service():
     """
     OAuth 2.0認証を行い、認証済みのYouTubeサービスオブジェクトを返す
+    GitHub Actions環境では環境変数から認証情報を取得して自動更新
     """
     import logging
-    
+    from google.oauth2.credentials import Credentials
+
     creds = None
     logging.info("YouTube API認証開始...")
-    
+
+    # GitHub Actions環境の確認（環境変数でリフレッシュトークンが提供されている場合）
+    yt_client_id = os.environ.get('YT_CLIENT_ID')
+    yt_client_secret = os.environ.get('YT_CLIENT_SECRET')
+    yt_refresh_token = os.environ.get('YT_REFRESH_TOKEN')
+
+    if yt_client_id and yt_client_secret and yt_refresh_token:
+        # GitHub Actions環境: 環境変数から認証情報を構築
+        logging.info("GitHub Actions環境を検出: 環境変数から認証情報を取得します")
+        try:
+            creds = Credentials(
+                None,  # token (アクセストークン) は自動で取得
+                refresh_token=yt_refresh_token,
+                token_uri="https://oauth2.googleapis.com/token",
+                client_id=yt_client_id,
+                client_secret=yt_client_secret,
+                scopes=SCOPES
+            )
+
+            # トークンをリフレッシュして最新のアクセストークンを取得
+            logging.info("リフレッシュトークンからアクセストークンを取得中...")
+            creds.refresh(Request())
+            logging.info("✅ GitHub Actions環境でのYouTube API認証に成功しました")
+
+            service = build(API_SERVICE_NAME, API_VERSION, credentials=creds)
+            logging.info("YouTube APIサービスの初期化に成功")
+            return service
+
+        except Exception as e:
+            logging.error(f"GitHub Actions環境での認証に失敗: {e}")
+            logging.error("リフレッシュトークンが無効か期限切れの可能性があります")
+            logging.error("解決方法: YOUTUBE_TOKEN_FIX.md を参照してください")
+            raise
+
+    # ローカル環境: token.pickleを使用
+    logging.info("ローカル環境を検出: token.pickleから認証情報を取得します")
+
     # token.pickleファイルが、ユーザーのアクセストークンとリフレッシュトークンを保存します。
     if os.path.exists(TOKEN_PICKLE_FILE):
         try:
@@ -41,7 +79,7 @@ def get_authenticated_service():
         except Exception as e:
             logging.warning(f"認証情報の読み込みに失敗: {e}")
             creds = None
-            
+
     # 有効な認証情報がない場合は、ユーザーにログインしてもらう
     if not creds or not creds.valid:
         if creds and creds.expired and creds.refresh_token:
@@ -52,16 +90,18 @@ def get_authenticated_service():
                 logging.info("アクセストークンの更新に成功")
             except Exception as e:
                 logging.error(f"トークンの更新に失敗: {e}")
-                # ネットワークエラーの場合、token.pickleを削除して再認証を促す
-                if "NameResolutionError" in str(e) or "Max retries exceeded" in str(e):
-                    logging.info("ネットワークエラーのため、認証ファイルを削除して再認証します")
+                logging.error("リフレッシュトークンが無効か期限切れの可能性があります")
+                # ネットワークエラーまたはリフレッシュトークン期限切れの場合
+                if "invalid_grant" in str(e) or "NameResolutionError" in str(e) or "Max retries exceeded" in str(e):
+                    logging.info("認証エラーのため、token.pickleを削除して再認証します")
+                    logging.info("解決方法: YOUTUBE_TOKEN_FIX.md を参照してください")
                     try:
                         os.remove(TOKEN_PICKLE_FILE)
                         logging.info("token.pickleファイルを削除しました")
                     except FileNotFoundError:
                         pass
                 creds = None
-        
+
         if not creds:
             try:
                 # 初回実行時、ブラウザが開いて認証を求められます
@@ -69,14 +109,14 @@ def get_authenticated_service():
                 print("INFO: A browser window will open for authentication.")
                 if not os.path.exists(CLIENT_SECRETS_FILE):
                     raise FileNotFoundError(f"クライアント秘密ファイルが見つかりません: {CLIENT_SECRETS_FILE}")
-                
+
                 flow = InstalledAppFlow.from_client_secrets_file(CLIENT_SECRETS_FILE, SCOPES)
                 creds = flow.run_local_server(port=0)
                 logging.info("新しい認証に成功")
             except Exception as e:
                 logging.error(f"認証プロセスに失敗: {e}")
                 raise
-        
+
         # 次回実行のために認証情報を保存
         try:
             with open(TOKEN_PICKLE_FILE, "wb") as token:
@@ -84,7 +124,7 @@ def get_authenticated_service():
             logging.info("認証情報を保存しました")
         except Exception as e:
             logging.warning(f"認証情報の保存に失敗: {e}")
-    
+
     try:
         service = build(API_SERVICE_NAME, API_VERSION, credentials=creds)
         logging.info("YouTube APIサービスの初期化に成功")
