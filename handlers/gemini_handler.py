@@ -72,39 +72,74 @@ def generate_next_plan_prompt(past_data, relative_analysis=None):
 
 def generate_quiz_script(plan_prompt, past_data, num_questions=10):
     """AIに戦略的に漢字クイズの台本をJSON形式で生成させる"""
-    print("INFO: AIが戦略的に漢字クイズのテーマと台本を生成中...")
+    import traceback
+    import logging
+    print(f"INFO: AIが戦略的に漢字クイズのテーマと台本を生成中...（問題数: {num_questions}問）")
 
-    past_themes = [data['theme'] for data in past_data if data['theme'] != "不明"]
-    top_theme = "なし"
-    if past_data:
-        top_video = max(past_data, key=lambda x: x.get('views', 0))
-        top_theme = top_video['theme'] if top_video.get('views', 0) > 0 else "なし"
-    
-    past_themes_str = ", ".join(set(past_themes)) if past_themes else "なし"
+    try:
+        past_themes = [data['theme'] for data in past_data if data['theme'] != "不明"]
+        top_theme = "なし"
+        if past_data:
+            top_video = max(past_data, key=lambda x: x.get('views', 0))
+            top_theme = top_video['theme'] if top_video.get('views', 0) > 0 else "なし"
 
-    prompt_config = prompts["quiz_script_prompt"]
-    current_datetime = datetime.now().strftime("%Y年%m月%d日 %H:%M:%S")
-    seasonal_context = get_seasonal_context()
-    system_prompt = (
-        f"{prompt_config['system_instruction']}\n\n"
-        f"{seasonal_context}\n\n"
-        f"{prompt_config['task_template'].format(current_datetime=current_datetime, past_themes_str=past_themes_str, top_theme=top_theme, plan_prompt=plan_prompt, num_questions=num_questions)}\n\n"
-        f"{prompt_config['verification_instruction']}\n\n"
-        f"{prompt_config['json_format_instruction'].format(question_number=1)}"
-    )
-    
-    generation_config = {"response_mime_type": "application/json"}
-    model = genai.GenerativeModel('gemini-2.5-flash', generation_config=generation_config)
-    
-    response = model.generate_content(system_prompt)
-    json_data = extract_json(response.text)
-    
-    # 問題数の厳格な検証を実行
-    json_data = validate_and_fix_quiz_questions(json_data, num_questions)
-    
-    usage = model.count_tokens(system_prompt).total_tokens
-                
-    return json_data, usage
+        past_themes_str = ", ".join(set(past_themes)) if past_themes else "なし"
+
+        prompt_config = prompts["quiz_script_prompt"]
+        current_datetime = datetime.now().strftime("%Y年%m月%d日 %H:%M:%S")
+        seasonal_context = get_seasonal_context()
+        system_prompt = (
+            f"{prompt_config['system_instruction']}\n\n"
+            f"{seasonal_context}\n\n"
+            f"{prompt_config['task_template'].format(current_datetime=current_datetime, past_themes_str=past_themes_str, top_theme=top_theme, plan_prompt=plan_prompt, num_questions=num_questions)}\n\n"
+            f"{prompt_config['verification_instruction']}\n\n"
+            f"{prompt_config['json_format_instruction'].format(question_number=1)}"
+        )
+
+        generation_config = {"response_mime_type": "application/json"}
+        model = genai.GenerativeModel('gemini-2.5-flash', generation_config=generation_config)
+
+        logging.info(f"Gemini APIにクイズデータ生成をリクエスト中...（問題数: {num_questions}問）")
+        response = model.generate_content(system_prompt)
+
+        logging.info(f"Gemini APIレスポンス受信完了、JSONパース中...")
+        json_data = extract_json(response.text)
+
+        # 問題数の厳格な検証を実行
+        json_data = validate_and_fix_quiz_questions(json_data, num_questions)
+
+        if json_data is None:
+            logging.error(f"❌ クイズデータの検証に失敗しました（問題数: {num_questions}問）")
+            return None, 0
+
+        usage = model.count_tokens(system_prompt).total_tokens
+        logging.info(f"✅ クイズデータ生成成功（問題数: {len(json_data.get('quiz_data', []))}問、トークン数: {usage}）")
+
+        return json_data, usage
+
+    except Exception as e:
+        error_type = type(e).__name__
+        error_msg = str(e)
+        logging.error(f"❌ クイズデータ生成中にエラーが発生しました（問題数: {num_questions}問）")
+        logging.error(f"エラータイプ: {error_type}")
+        logging.error(f"エラー内容: {error_msg}")
+        logging.error(f"トレースバック:\n{traceback.format_exc()}")
+
+        # 具体的なエラー種別を判定
+        if "429" in error_msg or "quota" in error_msg.lower() or "rate" in error_msg.lower():
+            logging.error("原因: Gemini APIのレート制限またはクォータ超過です")
+            print("ERROR: Gemini APIのレート制限に達しました。しばらく待ってから再試行してください。")
+        elif "timeout" in error_msg.lower() or "deadline" in error_msg.lower():
+            logging.error("原因: APIリクエストがタイムアウトしました")
+            print("ERROR: APIリクエストがタイムアウトしました。ネットワーク接続を確認してください。")
+        elif "json" in error_msg.lower() or "parse" in error_msg.lower():
+            logging.error("原因: JSONパースエラーです")
+            print("ERROR: AIからのレスポンスをJSONとして解析できませんでした。")
+        else:
+            logging.error(f"原因: 不明なエラー（{error_type}）")
+            print(f"ERROR: クイズデータ生成中に予期しないエラーが発生しました: {error_msg}")
+
+        return None, 0
 
 def validate_and_fix_quiz_questions(quiz_data, expected_questions=10):
     """

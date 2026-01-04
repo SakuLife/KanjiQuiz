@@ -112,37 +112,72 @@ def get_all_videos_for_report(sheet):
 
 def update_report_data(sheet, col_map, data):
     """動画の統計情報と分析結果をスプレッドシートに上書き更新する"""
+    import time
     row_num = data['row_num']
     print(f"INFO: {row_num}行目のレポートデータを更新中...")
     try:
-        # 統計情報の上書き
+        # バッチ更新用のデータを準備
+        batch_data = []
+
+        # 統計情報の更新範囲を追加
         stats_range = f"{gspread.utils.rowcol_to_a1(row_num, col_map['再生数'])}:{gspread.utils.rowcol_to_a1(row_num, col_map['コメント'])}"
-        sheet.update(stats_range, [[data['stats']['views'], data['stats']['likes'], data['stats']['comments']]], value_input_option='USER_ENTERED')
+        batch_data.append({
+            'range': stats_range,
+            'values': [[data['stats']['views'], data['stats']['likes'], data['stats']['comments']]]
+        })
 
         # 分析と計画の更新 (あれば)
         if 'insight' in data:
             analysis_cell = gspread.utils.rowcol_to_a1(row_num, col_map['分析【1d】'])
             plan_cell = gspread.utils.rowcol_to_a1(row_num, col_map['計画【1d】'])
-            sheet.update(analysis_cell, [[data['insight']['analysis']]])
-            sheet.update(plan_cell, [[data['insight']['plan']]])
-            
-            # トークン数と料金を更新
+
+            # 事前にトークン数と料金を読み取り (バッチ更新前に1回だけ)
             tokens_col_name, cost_col_name = "トークン数", "料金"
             tokens_cell_a1 = gspread.utils.rowcol_to_a1(row_num, col_map[tokens_col_name])
             cost_cell_a1 = gspread.utils.rowcol_to_a1(row_num, col_map[cost_col_name])
-            
-            prev_tokens = int(sheet.acell(tokens_cell_a1).value or "0")
-            prev_cost_str = sheet.acell(cost_cell_a1).value or "¥0"
+
+            # 読み取りを1回のbatch_getで実行
+            cell_values = sheet.batch_get([tokens_cell_a1, cost_cell_a1])
+            prev_tokens = int(cell_values[0][0][0] if cell_values[0] and cell_values[0][0] else "0")
+            prev_cost_str = cell_values[1][0][0] if cell_values[1] and cell_values[1][0] else "¥0"
             prev_cost = float(prev_cost_str.replace("¥", "").replace(",", ""))
 
             new_tokens = prev_tokens + data['insight'].get('tokens', 0)
             new_cost = prev_cost + (data['insight'].get('tokens', 0) * 0.23 / 1000)
-            
-            sheet.update(f"{tokens_cell_a1}:{cost_cell_a1}", [[new_tokens, f"¥{new_cost:,.2f}"]], value_input_option='USER_ENTERED')
+
+            # 分析、計画、トークン、料金を一括更新データに追加
+            analysis_plan_range = f"{analysis_cell}:{plan_cell}"
+            batch_data.append({
+                'range': analysis_plan_range,
+                'values': [[data['insight']['analysis'], data['insight']['plan']]]
+            })
+
+            tokens_cost_range = f"{tokens_cell_a1}:{cost_cell_a1}"
+            batch_data.append({
+                'range': tokens_cost_range,
+                'values': [[new_tokens, f"¥{new_cost:,.2f}"]]
+            })
+
+        # バッチ更新を1回で実行 (APIコールを大幅に削減)
+        sheet.batch_update(batch_data, value_input_option='USER_ENTERED')
+
+        # レート制限対策: 0.1秒待機
+        time.sleep(0.1)
 
         return True
     except Exception as e:
         print(f"ERROR: {row_num}行目の更新中にエラー: {e}")
+        # レート制限エラーの場合、待機してリトライ
+        if "429" in str(e) or "Quota exceeded" in str(e):
+            print(f"WARNING: レート制限エラー検出。10秒待機してリトライします...")
+            time.sleep(10)
+            try:
+                # リトライ
+                sheet.batch_update(batch_data, value_input_option='USER_ENTERED')
+                return True
+            except Exception as retry_error:
+                print(f"ERROR: リトライも失敗: {retry_error}")
+                return False
         return False
 
 def fetch_past_data(sheet):
