@@ -75,8 +75,10 @@ def create_horizontal_endurance_quiz(quiz_data, base_filename, output_path):
     """10分横型耐久漢字クイズ動画を生成する"""
     print("INFO: 横型耐久漢字クイズ動画の生成を開始...")
     SCREEN_SIZE = (1920, 1080)  # 横型フォーマット
-    FONT_BOLD = r"C:/Windows/Fonts/meiryob.ttc"
-    FONT_REGULAR = r"C:/Windows/Fonts/meiryo.ttc"
+
+    # フォントパスを環境変数から取得（GitHub Actions対応）
+    FONT_BOLD = os.environ.get('FONT_PATH_BOLD', r"C:/Windows/Fonts/meiryob.ttc")
+    FONT_REGULAR = os.environ.get('FONT_PATH_REGULAR', r"C:/Windows/Fonts/meiryo.ttc")
     
     num_questions = len(quiz_data.get("quiz_data", []))
     THINKING_TIME = 4.0  # 耐久でも十分な考慮時間を確保
