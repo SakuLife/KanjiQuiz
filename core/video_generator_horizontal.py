@@ -188,12 +188,12 @@ def create_horizontal_endurance_quiz(quiz_data, base_filename, output_path):
         
         # シンキングタイム (メイン問題表示)
         question_kanji_img = create_text_image_horizontal(
-            text=quiz['kanji'], 
-            font_path=FONT_BOLD, 
-            font_size=300, 
-            font_color="black", 
-            size=(800, 400), 
-            fit_to_size=True
+            text=quiz['kanji'],
+            font_path=FONT_BOLD,
+            font_size=300,
+            font_color="black",
+            size=(1500, 400),
+            fit_to_size=False
         )
         timer_bar = create_timer_bar_horizontal(THINKING_TIME, size=(600, 15), color=(255, 100, 100), pos=('center', 800))
         

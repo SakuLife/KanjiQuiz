@@ -281,7 +281,7 @@ def create_advanced_quiz_video(quiz_data, base_filename, output_path):
         current_time += q_narration_duration
         
         # --- シンキングタイム ---
-        question_kanji_img = create_text_image(text=quiz['kanji'], font_path=FONT_BOLD, font_size=400, font_color="black", size=(900, 400), fit_to_size=True)
+        question_kanji_img = create_text_image(text=quiz['kanji'], font_path=FONT_BOLD, font_size=400, font_color="black", size=(1500, 400), fit_to_size=False)
         timer_bar = create_timer_bar(THINKING_TIME, size=(800, 20), color=(50, 150, 255), pos=('center', 1300))
         
         thinking_scene = CompositeVideoClip([
@@ -305,7 +305,7 @@ def create_advanced_quiz_video(quiz_data, base_filename, output_path):
         if a_narration_audio: all_audio_clips.append(a_narration_audio.set_start(current_time))
 
         answer_text = f"正解：{quiz.get('yomi', '')}"
-        answer_text_img = create_text_image(text=answer_text, font_path=FONT_BOLD, font_size=150, font_color="red", size=(900, 200), fit_to_size=True)
+        answer_text_img = create_text_image(text=answer_text, font_path=FONT_BOLD, font_size=150, font_color="red", size=(1500, 200), fit_to_size=True)
         
         answer_scene = CompositeVideoClip([
             resize_bg(bg_image_base, a_narration_duration), 
