@@ -128,12 +128,12 @@ def run_creation_flow(vv_handler, youtube_service):
     # 耐久版クイズデータを生成（80-100問で10-20分動画）
     endurance_plan = f"{plan_prompt}\n\n【耐久版用】10-20分の集中力を維持できる、テンポの良い連続クイズにしてください。視聴者が飽きないよう、バラエティに富んだ問題構成にしてください。"
     logging.info("耐久版（横型長尺動画）のクイズデータ生成を開始...")
-    quiz_data_endurance, script_tokens_endurance = generate_quiz_script(endurance_plan, past_data, num_questions=90)
+    quiz_data_endurance, script_tokens_endurance = generate_quiz_script(endurance_plan, past_data, num_questions=50)
     if not quiz_data_endurance or not quiz_data_endurance.get("quiz_data"):
         logging.warning("⚠️ 耐久版（横型長尺動画）のクイズデータ生成に失敗しました。通常版（ショート）のみ生成します。")
         logging.warning("⚠️ 詳細なエラーログを確認してください。考えられる原因:")
         logging.warning("  - Gemini APIのレート制限/クォータ超過")
-        logging.warning("  - 90問の生成がタイムアウト")
+        logging.warning("  - 50問の生成がタイムアウト")
         logging.warning("  - JSONパースエラー")
         quiz_data_endurance = None
         script_tokens_endurance = 0
