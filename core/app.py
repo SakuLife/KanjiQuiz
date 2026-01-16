@@ -211,7 +211,13 @@ def run_creation_flow(vv_handler, youtube_service):
         if "耐久" not in endurance_title:
             endurance_title = f"【{len(quiz_data_endurance['quiz_data'])}問連続耐久】{endurance_title}"
         quiz_data_endurance["title"] = endurance_title
-        create_horizontal_endurance_quiz(quiz_data_endurance, endurance_filename, output_path=video_path_endurance)
+        try:
+            create_horizontal_endurance_quiz(quiz_data_endurance, endurance_filename, output_path=video_path_endurance)
+        except Exception as e:
+            logging.error(f"耐久版動画生成中にエラー発生: {e}")
+            import traceback
+            traceback.print_exc()
+            send_discord_notification(f"❌ **耐久版動画生成失敗**\nエラー: {str(e)[:200]}", is_error=True)
     
     # 動画生成完了チェック
     if not os.path.exists(video_path):

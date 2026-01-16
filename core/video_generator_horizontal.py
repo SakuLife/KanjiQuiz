@@ -7,6 +7,7 @@ import moviepy.audio.fx.all as afx
 import os
 import textwrap
 import random
+import logging
 
 # --- 1. ヘルパー関数 ---
 
@@ -57,23 +58,26 @@ def create_timer_bar_horizontal(duration, size, color, pos):
     bar_fx = bar.fx(vfx.resize, newsize=lambda t: (max(1, size[0] * (1 - t / duration)), size[1]))
     return bar_fx.set_position(pos)
 
-def create_question_counter_horizontal(current, total, size):
-    """横型用の問題カウンター表示"""
+def create_question_counter_horizontal(current, total, size, font_path=None):
+    """横型用の問題カウンター表示（左上用）"""
     counter_text = f"問題 {current} / {total}"
+    # フォントパスを環境変数から取得（GitHub Actions対応）
+    if font_path is None:
+        font_path = os.environ.get('FONT_PATH_BOLD', r"C:/Windows/Fonts/meiryob.ttc")
     return create_text_image_horizontal(
-        text=counter_text, 
-        font_path=r"C:/Windows/Fonts/meiryob.ttc", 
-        font_size=40, 
-        font_color="white", 
-        size=size, 
-        stroke_width=3, 
+        text=counter_text,
+        font_path=font_path,
+        font_size=55,
+        font_color="white",
+        size=size,
+        stroke_width=4,
         stroke_color="black"
     )
 
 # --- 2. 横型耐久クイズ動画生成ロジック ---
 def create_horizontal_endurance_quiz(quiz_data, base_filename, output_path):
     """10分横型耐久漢字クイズ動画を生成する"""
-    print("INFO: 横型耐久漢字クイズ動画の生成を開始...")
+    logging.info("横型耐久漢字クイズ動画の生成を開始...")
     SCREEN_SIZE = (1920, 1080)  # 横型フォーマット
 
     # フォントパスを環境変数から取得（GitHub Actions対応）
@@ -103,14 +107,17 @@ def create_horizontal_endurance_quiz(quiz_data, base_filename, output_path):
         bgm_files = [f for f in bgm_files if f.name != "dummy_bgm.mp3"]
         if not bgm_files: raise FileNotFoundError("BGMがbgmフォルダに見つかりません。")
         selected_bgm_path = random.choice(bgm_files)
-        print(f"INFO: Selected BGM -> {selected_bgm_path.name}")
+        logging.info(f"Selected BGM -> {selected_bgm_path.name}")
         bgm = AudioFileClip(str(selected_bgm_path)).volumex(0.03)  # 耐久なのでBGMはさらに小さく
 
         se_question = AudioFileClip(str(SE_DIR / "question.mp3")).volumex(0.7)
         se_correct = AudioFileClip(str(SE_DIR / "correct.mp3")).volumex(0.7)
         se_tick = AudioFileClip(str(SE_DIR / "tick.mp3")).volumex(0.3)
+        logging.info("アセットファイルの読み込み完了")
     except Exception as e:
-        print(f"❌エラー: アセットファイルの読み込みに失敗: {e}")
+        logging.error(f"❌ アセットファイルの読み込みに失敗: {e}")
+        import traceback
+        traceback.print_exc()
         return
 
     all_video_clips, all_audio_clips = [], []
@@ -152,11 +159,12 @@ def create_horizontal_endurance_quiz(quiz_data, base_filename, output_path):
     current_time += OPENING_DURATION
 
     # メインクイズループ
+    logging.info(f"メインクイズループ開始: {num_questions}問")
     for i, quiz in enumerate(quiz_data.get("quiz_data", [])):
         q_num = i + 1
         
-        # 問題カウンター
-        counter_img = create_question_counter_horizontal(q_num, num_questions, (200, 60))
+        # 問題カウンター（左上表示用 - サイズを大きく）
+        counter_img = create_question_counter_horizontal(q_num, num_questions, (300, 80))
         
         # ナレーション音声の処理（耐久版でも完全な音声を使用）
         q_narration_path = str(VOICE_DIR / f"{base_filename}_q{q_num}_before.wav")
@@ -167,14 +175,16 @@ def create_horizontal_endurance_quiz(quiz_data, base_filename, output_path):
         else:
             q_narration_duration = 2.0  # デフォルト時間
         
-        # 問題提示シーン (簡略化)
+        # 問題提示シーン（中央表示 - サイズを大きく、はみ出し防止）
         q_header_text = f"第 {q_num} 問"
         q_header_img = create_text_image_horizontal(
-            text=q_header_text, 
-            font_path=FONT_REGULAR, 
-            font_size=50, 
-            font_color="blue", 
-            size=(300, 80)
+            text=q_header_text,
+            font_path=FONT_BOLD,
+            font_size=80,
+            font_color="blue",
+            size=(500, 120),
+            stroke_width=3,
+            stroke_color="white"
         )
         
         question_narration_scene = CompositeVideoClip([
@@ -274,32 +284,33 @@ def create_horizontal_endurance_quiz(quiz_data, base_filename, output_path):
     current_time += outro_duration
 
     # 最終的な結合とオーディオ設定
+    logging.info("横型動画の最終結合を開始...")
     try:
-        print(f"INFO: 横型動画クリップ数: {len(all_video_clips)}, 音声クリップ数: {len(all_audio_clips)}")
-        print(f"INFO: 総動画時間: {current_time:.1f}秒 ({current_time/60:.1f}分)")
-        
+        logging.info(f"横型動画クリップ数: {len(all_video_clips)}, 音声クリップ数: {len(all_audio_clips)}")
+        logging.info(f"総動画時間: {current_time:.1f}秒 ({current_time/60:.1f}分)")
+
         final_clip = CompositeVideoClip(all_video_clips, size=SCREEN_SIZE).set_duration(current_time)
-        print(f"INFO: 横型動画クリップ合成完了")
-        
+        logging.info("横型動画クリップ合成完了")
+
         if all_audio_clips:
             looped_bgm = bgm.fx(afx.audio_loop, duration=final_clip.duration)
             final_audio = CompositeAudioClip([looped_bgm] + all_audio_clips)
             final_clip = final_clip.set_audio(final_audio)
-            print(f"INFO: 音声クリップ合成完了")
+            logging.info("音声クリップ合成完了")
         else:
-            print("WARNING: 音声クリップが見つかりません")
-        
-        print("INFO: 横型耐久動画を書き出しています...")
-        final_clip.write_videofile(output_path, fps=30, codec="libx264", audio_codec="aac", verbose=True, temp_audiofile="temp-audio-horizontal.m4a")
-        
+            logging.warning("音声クリップが見つかりません")
+
+        logging.info("横型耐久動画を書き出しています...")
+        final_clip.write_videofile(output_path, fps=30, codec="libx264", audio_codec="aac", verbose=False, logger=None, temp_audiofile="temp-audio-horizontal.m4a")
+
         # 生成されたファイルサイズを確認
         if os.path.exists(output_path):
             file_size = os.path.getsize(output_path)
-            print(f"INFO: 横型耐久動画生成完了: {output_path} ({file_size:,} bytes)")
+            logging.info(f"横型耐久動画生成完了: {output_path} ({file_size:,} bytes)")
         else:
-            print(f"ERROR: 横型動画ファイルが生成されませんでした: {output_path}")
-            
+            logging.error(f"横型動画ファイルが生成されませんでした: {output_path}")
+
     except Exception as e:
-        print(f"ERROR: 横型動画生成中にエラー発生: {e}")
+        logging.error(f"横型動画生成中にエラー発生: {e}")
         import traceback
         traceback.print_exc()

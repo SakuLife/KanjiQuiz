@@ -10,20 +10,27 @@ import random
 
 # --- 1. ヘルパー関数 ---
 
-def create_text_image(text, font_path, font_size, font_color, size, bg_color=(0,0,0,0), 
+def create_text_image(text, font_path, font_size, font_color, size, bg_color=(0,0,0,0),
                       stroke_width=0, stroke_color="black", text_align="center",
-                      fit_to_size=False):
+                      fit_to_size=False, max_chars_per_line=None):
     """
     Pillowを使って、指定された領域にテキスト画像を生成する関数。
     自動フォントサイズ調整、自動折り返し機能付き。
+    max_chars_per_line: 1行あたりの最大文字数（日本語向け、指定時に優先）
     """
     img = Image.new("RGBA", size, bg_color)
     draw = ImageDraw.Draw(img)
-    
+
     font = ImageFont.truetype(font_path, font_size)
 
-    # テキストの自動折り返し処理
-    char_per_line = int(size[0] / (font_size * 0.65)) if font_size > 0 and fit_to_size else 15
+    # テキストの自動折り返し処理（日本語対応）
+    if max_chars_per_line:
+        # 明示的に指定された場合はその値を使用
+        char_per_line = max_chars_per_line
+    elif fit_to_size and font_size > 0:
+        char_per_line = int(size[0] / (font_size * 0.65))
+    else:
+        char_per_line = 15
     wrapped_text = "\n".join(textwrap.wrap(text, width=char_per_line, break_long_words=True))
 
     # 自動フォントサイズ調整
@@ -281,7 +288,8 @@ def create_advanced_quiz_video(quiz_data, base_filename, output_path):
         current_time += q_narration_duration
         
         # --- シンキングタイム ---
-        question_kanji_img = create_text_image(text=quiz['kanji'], font_path=FONT_BOLD, font_size=400, font_color="black", size=(1500, 400), fit_to_size=False)
+        # 3文字以上の漢字でもはみ出さないよう、幅を狭くしてfit_to_sizeを有効化
+        question_kanji_img = create_text_image(text=quiz['kanji'], font_path=FONT_BOLD, font_size=350, font_color="black", size=(950, 450), fit_to_size=True)
         timer_bar = create_timer_bar(THINKING_TIME, size=(800, 20), color=(50, 150, 255), pos=('center', 1300))
         
         thinking_scene = CompositeVideoClip([
@@ -305,7 +313,8 @@ def create_advanced_quiz_video(quiz_data, base_filename, output_path):
         if a_narration_audio: all_audio_clips.append(a_narration_audio.set_start(current_time))
 
         answer_text = f"正解：{quiz.get('yomi', '')}"
-        answer_text_img = create_text_image(text=answer_text, font_path=FONT_BOLD, font_size=150, font_color="red", size=(1500, 200), fit_to_size=True)
+        # 5文字以上の読みでもはみ出さないよう、幅を画面内に収める
+        answer_text_img = create_text_image(text=answer_text, font_path=FONT_BOLD, font_size=120, font_color="red", size=(950, 200), fit_to_size=True)
         
         answer_scene = CompositeVideoClip([
             resize_bg(bg_image_base, a_narration_duration), 
@@ -324,7 +333,8 @@ def create_advanced_quiz_video(quiz_data, base_filename, output_path):
     if outro_narration_audio: all_audio_clips.append(outro_narration_audio.set_start(current_time))
 
     outro_text = quiz_data.get("outro_narration", "お疲れさまでした！")
-    ending_text_img = create_text_image(text=outro_text, font_path=FONT_BOLD, font_size=80, font_color="black", size=(1000, 400), fit_to_size=True)
+    # 日本語の読みやすさを考慮して1行あたり12文字で改行
+    ending_text_img = create_text_image(text=outro_text, font_path=FONT_BOLD, font_size=70, font_color="black", size=(950, 500), fit_to_size=True, max_chars_per_line=12)
     
     ending_scene = CompositeVideoClip([
         resize_bg(bg_image_base, outro_duration), 
@@ -351,7 +361,7 @@ def create_advanced_quiz_video(quiz_data, base_filename, output_path):
             print("WARNING: 音声クリップが見つかりません")
         
         print("INFO: 動画を書き出しています...")
-        final_clip.write_videofile(output_path, fps=30, codec="libx264", audio_codec="aac", verbose=True, temp_audiofile="temp-audio.m4a")
+        final_clip.write_videofile(output_path, fps=30, codec="libx264", audio_codec="aac", verbose=False, logger=None, temp_audiofile="temp-audio.m4a")
 
         # サムネイル生成
         thumbnail_path = create_thumbnail(quiz_data, base_filename, output_path)
