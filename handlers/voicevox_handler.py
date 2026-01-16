@@ -73,10 +73,20 @@ class VoicevoxHandler:
         print("INFO: Starting VOICEVOX engine...")
         try:
             # Windowsの場合はCREATE_NO_WINDOWフラグを使用
+            # stdout/stderrをDEVNULLにリダイレクトして進捗ログを抑制
             if self.is_windows:
-                self.process = subprocess.Popen(self.engine_path, creationflags=subprocess.CREATE_NO_WINDOW)
+                self.process = subprocess.Popen(
+                    self.engine_path,
+                    creationflags=subprocess.CREATE_NO_WINDOW,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL
+                )
             else:
-                self.process = subprocess.Popen([self.engine_path])
+                self.process = subprocess.Popen(
+                    [self.engine_path],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL
+                )
             for attempt in range(30):  # 15回 -> 30回に増加
                 try:
                     response = requests.get(self.base_url, timeout=3)  # 2秒 -> 3秒に増加
