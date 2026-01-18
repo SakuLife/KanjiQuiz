@@ -131,7 +131,7 @@ def run_creation_flow(vv_handler, youtube_service):
     if True:  # 耐久版を有効化
         endurance_plan = f"{plan_prompt}\n\n【耐久版用】10-20分の集中力を維持できる、テンポの良い連続クイズにしてください。視聴者が飽きないよう、バラエティに富んだ問題構成にしてください。"
         logging.info("耐久版（横型長尺動画）のクイズデータ生成を開始...")
-        quiz_data_endurance, script_tokens_endurance = generate_quiz_script(endurance_plan, past_data, num_questions=50)
+        quiz_data_endurance, script_tokens_endurance = generate_quiz_script(endurance_plan, past_data, num_questions=30)
     # 耐久版が無効化されている場合はスキップ
     if quiz_data_endurance and quiz_data_endurance.get("quiz_data"):
         logging.info(f"✅ 耐久版クイズデータ生成成功: {len(quiz_data_endurance.get('quiz_data', []))}問")
