@@ -70,12 +70,36 @@ jobs:
 
     - name: Setup environment variables
       run: |
-        echo "SPREADSHEET_ID=${{ secrets.SPREADSHEET_ID }}" >> $GITHUB_ENV
-        echo "GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}" >> $GITHUB_ENV
-        echo "DISCORD_WEBHOOK_URL=${{ secrets.DISCORD_WEBHOOK_URL }}" >> $GITHUB_ENV
-        echo "YT_CLIENT_ID=${{ secrets.YT_CLIENT_ID }}" >> $GITHUB_ENV
-        echo "YT_CLIENT_SECRET=${{ secrets.YT_CLIENT_SECRET }}" >> $GITHUB_ENV
-        echo "YT_REFRESH_TOKEN=${{ secrets.YT_REFRESH_TOKEN }}" >> $GITHUB_ENV
+        python3 << 'PYTHON_SCRIPT'
+        import os
+
+        # シークレットから改行・空白を除去して環境変数に設定
+        secrets = {
+            'SPREADSHEET_ID': os.environ.get('INPUT_SPREADSHEET_ID', ''),
+            'GEMINI_API_KEY': os.environ.get('INPUT_GEMINI_API_KEY', ''),
+            'DISCORD_WEBHOOK_URL': os.environ.get('INPUT_DISCORD_WEBHOOK_URL', ''),
+            'YT_CLIENT_ID': os.environ.get('INPUT_YT_CLIENT_ID', ''),
+            'YT_CLIENT_SECRET': os.environ.get('INPUT_YT_CLIENT_SECRET', ''),
+            'YT_REFRESH_TOKEN': os.environ.get('INPUT_YT_REFRESH_TOKEN', ''),
+        }
+
+        with open(os.environ['GITHUB_ENV'], 'a') as f:
+            for key, value in secrets.items():
+                # 改行・空白・タブを除去
+                clean_value = value.strip().replace('\n', '').replace('\r', '').replace('\t', '')
+                if clean_value:
+                    f.write(f"{key}={clean_value}\n")
+                    print(f"Set {key} (length: {len(clean_value)})")
+                else:
+                    print(f"Warning: {key} is empty")
+        PYTHON_SCRIPT
+      env:
+        INPUT_SPREADSHEET_ID: ${{ secrets.SPREADSHEET_ID }}
+        INPUT_GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        INPUT_DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        INPUT_YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
+        INPUT_YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
+        INPUT_YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
 
     - name: Create required directories
       run: |
@@ -275,11 +299,32 @@ jobs:
 
     - name: Setup environment variables
       run: |
-        echo "SPREADSHEET_ID=${{ secrets.SPREADSHEET_ID }}" >> $GITHUB_ENV
-        echo "DISCORD_WEBHOOK_URL=${{ secrets.DISCORD_WEBHOOK_URL }}" >> $GITHUB_ENV
-        echo "YT_CLIENT_ID=${{ secrets.YT_CLIENT_ID }}" >> $GITHUB_ENV
-        echo "YT_CLIENT_SECRET=${{ secrets.YT_CLIENT_SECRET }}" >> $GITHUB_ENV
-        echo "YT_REFRESH_TOKEN=${{ secrets.YT_REFRESH_TOKEN }}" >> $GITHUB_ENV
+        python3 << 'PYTHON_SCRIPT'
+        import os
+
+        secrets = {
+            'SPREADSHEET_ID': os.environ.get('INPUT_SPREADSHEET_ID', ''),
+            'DISCORD_WEBHOOK_URL': os.environ.get('INPUT_DISCORD_WEBHOOK_URL', ''),
+            'YT_CLIENT_ID': os.environ.get('INPUT_YT_CLIENT_ID', ''),
+            'YT_CLIENT_SECRET': os.environ.get('INPUT_YT_CLIENT_SECRET', ''),
+            'YT_REFRESH_TOKEN': os.environ.get('INPUT_YT_REFRESH_TOKEN', ''),
+        }
+
+        with open(os.environ['GITHUB_ENV'], 'a') as f:
+            for key, value in secrets.items():
+                clean_value = value.strip().replace('\n', '').replace('\r', '').replace('\t', '')
+                if clean_value:
+                    f.write(f"{key}={clean_value}\n")
+                    print(f"Set {key} (length: {len(clean_value)})")
+                else:
+                    print(f"Warning: {key} is empty")
+        PYTHON_SCRIPT
+      env:
+        INPUT_SPREADSHEET_ID: ${{ secrets.SPREADSHEET_ID }}
+        INPUT_DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        INPUT_YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
+        INPUT_YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
+        INPUT_YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
 
     - name: Setup Google Service Account
       run: |
