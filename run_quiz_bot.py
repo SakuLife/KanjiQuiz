@@ -74,7 +74,7 @@ def setup_github_actions_env():
     logging.info("GitHub Actions environment setup completed")
 
 def run_python_script(script_name, description):
-    """Pythonスクリプトを実行"""
+    """Pythonスクリプトを実行（リアルタイム出力）"""
     logging.info("[%s] %s", script_name, description)
 
     # GitHub Actionsの場合はシステムPythonを使用
@@ -82,7 +82,7 @@ def run_python_script(script_name, description):
 
     if github_actions:
         python_exe = "python"  # システムPython
-        timeout_seconds = 3600  # 60分（耐久版90問の音声・動画生成のため）
+        timeout_seconds = 3600  # 60分
     else:
         python_exe = Path("new_venv/Scripts/python.exe")
         timeout_seconds = 600  # 10分
@@ -90,31 +90,47 @@ def run_python_script(script_name, description):
     script_path = Path("core") / script_name
 
     try:
-        result = subprocess.run(
+        # リアルタイム出力のためPopenを使用
+        process = subprocess.Popen(
             [str(python_exe), str(script_path)],
-            capture_output=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,  # stderrもstdoutに統合
             text=True,
             encoding='utf-8',
-            errors='replace',  # Unicode エラーを置換文字で処理
-            timeout=timeout_seconds
+            errors='replace',
+            bufsize=1  # 行バッファリング
         )
 
-        if result.stdout:
-            logging.info("STDOUT:\n%s", result.stdout)
-        if result.stderr:
-            logging.warning("STDERR:\n%s", result.stderr)
+        # リアルタイムで出力を読み取り
+        start_time = datetime.datetime.now()
+        while True:
+            # タイムアウトチェック
+            elapsed = (datetime.datetime.now() - start_time).total_seconds()
+            if elapsed > timeout_seconds:
+                process.kill()
+                logging.error("%s timed out after %d minutes", description, timeout_seconds // 60)
+                return False
 
-        if result.returncode == 0:
+            line = process.stdout.readline()
+            if line:
+                print(line.rstrip())  # リアルタイム出力
+                sys.stdout.flush()
+            elif process.poll() is not None:
+                # プロセス終了
+                break
+
+        # 残りの出力を読み取り
+        remaining = process.stdout.read()
+        if remaining:
+            print(remaining.rstrip())
+
+        if process.returncode == 0:
             logging.info("%s completed successfully", description)
             return True
         else:
-            logging.warning("%s failed with exit code %d", description, result.returncode)
+            logging.warning("%s failed with exit code %d", description, process.returncode)
             return False
 
-    except subprocess.TimeoutExpired:
-        timeout_min = timeout_seconds // 60
-        logging.error("%s timed out after %d minutes", description, timeout_min)
-        return False
     except Exception as e:
         logging.error("Error running %s: %s", description, str(e))
         return False
