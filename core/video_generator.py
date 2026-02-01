@@ -361,7 +361,7 @@ def create_advanced_quiz_video(quiz_data, base_filename, output_path):
             print("WARNING: 音声クリップが見つかりません")
         
         print("INFO: 動画を書き出しています...")
-        final_clip.write_videofile(output_path, fps=30, codec="libx264", audio_codec="aac", verbose=False, logger=None, temp_audiofile="temp-audio.m4a")
+        final_clip.write_videofile(output_path, fps=30, codec="libx264", preset="superfast", audio_codec="aac", verbose=False, logger=None, temp_audiofile="temp-audio.m4a", threads=4)
 
         # サムネイル生成
         thumbnail_path = create_thumbnail(quiz_data, base_filename, output_path)
