@@ -301,7 +301,7 @@ def create_horizontal_endurance_quiz(quiz_data, base_filename, output_path):
             logging.warning("音声クリップが見つかりません")
 
         logging.info("横型耐久動画を書き出しています...")
-        final_clip.write_videofile(output_path, fps=30, codec="libx264", preset="superfast", audio_codec="aac", verbose=False, logger=None, temp_audiofile="temp-audio-horizontal.m4a", threads=4)
+        final_clip.write_videofile(output_path, fps=30, codec="libx264", preset="ultrafast", audio_codec="aac", verbose=False, logger=None, temp_audiofile="temp-audio-horizontal.m4a", threads=4)
 
         # 生成されたファイルサイズを確認
         if os.path.exists(output_path):

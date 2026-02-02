@@ -21,7 +21,7 @@ from core.video_generator import create_advanced_quiz_video
 from core.video_generator_horizontal import create_horizontal_endurance_quiz
 from handlers.youtube_handler import get_authenticated_service, upload_to_youtube
 from handlers.discord_handler import send_discord_notification, format_script_notification, format_error_notification
-from core.reporter import run_report_flow
+
 from core.performance_analyzer import PerformanceAnalyzer
 from utils.utils import get_unique_log_filename
 
@@ -131,7 +131,7 @@ def run_creation_flow(vv_handler, youtube_service):
     if True:  # 耐久版を有効化
         endurance_plan = f"{plan_prompt}\n\n【耐久版用】10-20分の集中力を維持できる、テンポの良い連続クイズにしてください。視聴者が飽きないよう、バラエティに富んだ問題構成にしてください。"
         logging.info("耐久版（横型長尺動画）のクイズデータ生成を開始...")
-        quiz_data_endurance, script_tokens_endurance = generate_quiz_script(endurance_plan, past_data, num_questions=30)
+        quiz_data_endurance, script_tokens_endurance = generate_quiz_script(endurance_plan, past_data, num_questions=20)
     # 耐久版が無効化されている場合はスキップ
     if quiz_data_endurance and quiz_data_endurance.get("quiz_data"):
         logging.info(f"✅ 耐久版クイズデータ生成成功: {len(quiz_data_endurance.get('quiz_data', []))}問")
@@ -380,11 +380,9 @@ if __name__ == "__main__":
         logging.info("✅ Voicevoxエンジンの起動に成功しました。")
         
         run_creation_flow(vv_handler, youtube_service)
-        
-        # 動画作成完了後、分析レポートを実行
-        logging.info("--- 分析レポート実行開始 ---")
-        run_report_flow(youtube_service)
-        logging.info("--- 分析レポート実行完了 ---")
+
+        # 分析レポートはmetrics-collection jobで実行されるためスキップ
+        logging.info("--- 分析レポートはmetrics-collection jobに委譲 ---")
 
     except RefreshError as e:
         error_message = "YouTube APIの認証トークンの有効期限が切れました。"
