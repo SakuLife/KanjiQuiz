@@ -65,7 +65,7 @@ def generate_insight_and_plan(title, script, previous_plan, stats_data, comments
     - 漢字の組み合わせにメリハリがあったか？
 
     ## 2. 解説内容と時間
-    - 解説の文字数（平均{avg_explanation_length:.1f}文字）は適切か？
+    - 解説の文字数（平均{avg_explanation_length:.1f}文字）は適切か？（目安: 50字以内。超過している場合は短縮を推奨）
     - 解説内容は興味深く、記憶に残りやすいか？
     - 豆知識や語源説明の効果は？
 
