@@ -8,9 +8,31 @@ load_dotenv(override=True)
 DISCORD_WEBHOOK_URL = os.getenv("DISCORD_WEBHOOK_URL")
 DISCORD_WEBHOOK_URL_ERROR = os.getenv("DISCORD_WEBHOOK_URL_ERROR")
 
-def send_discord_notification(message, username="動画生成Bot", is_error=False):
+DISCORD_MESSAGE_LIMIT = 1900  # Discordの上限2000文字に安全マージンを確保
+
+def _split_message(message: str, limit: int = DISCORD_MESSAGE_LIMIT) -> list[str]:
+    """メッセージをDiscordの文字数制限に合わせて分割する"""
+    if len(message) <= limit:
+        return [message]
+
+    chunks: list[str] = []
+    while message:
+        if len(message) <= limit:
+            chunks.append(message)
+            break
+        # 改行で区切れる位置を探す
+        split_pos = message.rfind("\n", 0, limit)
+        if split_pos <= 0:
+            split_pos = limit
+        chunks.append(message[:split_pos])
+        message = message[split_pos:].lstrip("\n")
+    # 空文字チャンクを除外
+    return [c for c in chunks if c.strip()]
+
+def send_discord_notification(message: str, username: str = "動画生成Bot", is_error: bool = False) -> bool:
     """
     DiscordのWebhookを使って、指定されたメッセージを送信する
+    2000文字を超える場合は自動で分割して送信する
     :param is_error: エラー通知の場合はTrue
     :return: 成功した場合はTrue、失敗した場合はFalse
     """
@@ -19,14 +41,22 @@ def send_discord_notification(message, username="動画生成Bot", is_error=Fals
         print(f"WARNING: .envファイルに適切なWebhook URLが設定されていません。(is_error={is_error})")
         return False
 
-    payload = {"username": username, "content": message}
-
+    chunks = _split_message(message)
     try:
-        response = requests.post(webhook_url, json=payload, timeout=10)
-        response.raise_for_status()
+        for chunk in chunks:
+            payload = {"username": username, "content": chunk}
+            response = requests.post(webhook_url, json=payload, timeout=10)
+            response.raise_for_status()
         return True
     except requests.exceptions.RequestException as e:
-        print(f"ERROR: Discord通知の送信に失敗しました: {e}")
+        # レスポンスボディからDiscordのエラー詳細を取得
+        detail = ""
+        if hasattr(e, 'response') and e.response is not None:
+            try:
+                detail = f" | 詳細: {e.response.text[:300]}"
+            except Exception:
+                pass
+        print(f"ERROR: Discord通知の送信に失敗しました: {e}{detail}")
         return False
 
 def format_script_notification(theme, title, description):
