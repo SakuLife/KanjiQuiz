@@ -77,49 +77,31 @@ def format_error_notification(script_name, error_message, traceback_str):
         f"**スタックトレース:**\n```python\n{traceback_str}\n```"
     )
 
+def _truncate(text: str, max_len: int = 200) -> str:
+    """テキストを指定文字数で切り詰める"""
+    if len(text) <= max_len:
+        return text
+    return text[:max_len] + "…"
+
 def format_analysis_notification(video, stats, insight, analysis_type, score_result=None):
-    """分析結果をDiscord通知用にフォーマットする"""
-    # スコア情報を最初に表示するかどうか
+    """分析結果をDiscord通知用にフォーマットする（簡潔版）"""
     score_header = ""
     if score_result:
         score = score_result['unified_score']
         rank = score_result['rank']
         rank_emoji = {"S": "🏆", "A": "🥇", "B": "🥈", "C": "🥉", "D": "📈"}.get(rank, "📊")
-        score_header = f" {rank_emoji} **{score:.1f}点 (ランク{rank})**"
+        score_header = f" {rank_emoji} {score:.1f}点({rank})"
+
+    analysis_short = _truncate(insight.get('analysis', ''), 200)
+    plan_short = _truncate(insight.get('plan', ''), 200)
 
     message = (
-        f"📈 **{analysis_type}分析レポート**{score_header} 📈\n\n"
-        f"**動画タイトル:** {video['title']}\n"
-        f"https://www.youtube.com/watch?v={video['video_id']}\n\n"
-        f"**【統計情報】**\n"
-        f"- 再生数: {stats['views']:,} 回\n"
-        f"- 高評価: {stats['likes']:,} 件\n"
-        f"- コメント: {stats['comments']:,} 件\n\n"
-        f"**【AIによる分析】**\n>>> {insight['analysis']}\n\n"
-        f"**【次回の計画案】**\n>>> {insight['plan']}"
+        f"📈 **{analysis_type}分析**{score_header}\n"
+        f"{video['title']}\n"
+        f"▶{stats['views']:,}回 👍{stats['likes']:,} 💬{stats['comments']:,}\n\n"
+        f"**分析:** {analysis_short}\n\n"
+        f"**計画:** {plan_short}"
     )
-    
-    # 統一スコア情報を追加
-    if score_result:
-        score_section = (
-            f"\n\n**【統一スコア評価】**\n"
-            f"- 総合スコア: **{score_result['unified_score']}点**/100 (ランク: {score_result['rank']})\n"
-            f"- 内訳: 再生数 {score_result['score_breakdown']['views']}点 | "
-            f"コメント {score_result['score_breakdown']['comments_count']}点 | "
-            f"内容評価 {score_result['score_breakdown']['comments_quality']}点\n"
-        )
-        
-        # テーマボーナス
-        if score_result.get('theme_bonus', 1.0) > 1.0:
-            score_section += f"- テーマボーナス: x{score_result['theme_bonus']} (専門性評価)\n"
-        
-        # 改善提案
-        recommendations = score_result.get('recommendations', [])
-        if recommendations:
-            score_section += f"- 改善提案: {recommendations[0]}"
-        
-        message += score_section
-    
     return message
 
 def format_daily_report(total_views, total_likes, total_comments, top_5_growing):
