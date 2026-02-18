@@ -240,8 +240,21 @@ jobs:
         PYTHONPATH: ${{ github.workspace }}
         VOICEVOX_ENGINE_PATH: ${{ env.VOICEVOX_ENGINE_PATH }}
 
-    - name: Upload artifacts on success
-      if: success()
+    - name: Check video output
+      id: check_video
+      if: always()
+      run: |
+        if ls video/*.mp4 1>/dev/null 2>&1; then
+          echo "video_exists=true" >> $GITHUB_OUTPUT
+          echo "✅ 動画ファイルが見つかりました:"
+          ls -lh video/*.mp4
+        else
+          echo "video_exists=false" >> $GITHUB_OUTPUT
+          echo "❌ 動画ファイルが見つかりません。動画生成に失敗した可能性があります。"
+        fi
+
+    - name: Upload video artifacts
+      if: steps.check_video.outputs.video_exists == 'true'
       uses: actions/upload-artifact@v4
       with:
         name: kanji-quiz-video-${{ github.run_number }}
@@ -252,7 +265,7 @@ jobs:
         retention-days: 7
 
     - name: Upload logs on failure
-      if: failure()
+      if: steps.check_video.outputs.video_exists != 'true'
       uses: actions/upload-artifact@v4
       with:
         name: kanji-quiz-logs-failed-${{ github.run_number }}

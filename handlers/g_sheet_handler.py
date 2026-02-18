@@ -21,14 +21,24 @@ COLORS = {
 }
 
 def get_sheet():
-    try:
-        scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-        credentials = ServiceAccountCredentials.from_json_keyfile_name(CREDENTIALS_FILE, scope)
-        gc = gspread.authorize(credentials)
-        return gc.open_by_key(SHEET_ID).sheet1
-    except Exception as e:
-        print(f"ERROR: Googleスプレッドシートへの接続に失敗: {e}")
-        return None
+    import time
+    max_retries = 3
+    for attempt in range(max_retries + 1):
+        try:
+            scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+            credentials = ServiceAccountCredentials.from_json_keyfile_name(CREDENTIALS_FILE, scope)
+            gc = gspread.authorize(credentials)
+            return gc.open_by_key(SHEET_ID).sheet1
+        except Exception as e:
+            error_str = str(e)
+            is_retryable = "503" in error_str or "unavailable" in error_str.lower() or "500" in error_str
+            if is_retryable and attempt < max_retries:
+                wait_time = 5 * (2 ** attempt)  # 5s, 10s, 20s
+                print(f"WARNING: スプレッドシート接続エラー ({e})。{wait_time}秒後にリトライします... (試行{attempt + 1}/{max_retries})")
+                time.sleep(wait_time)
+            else:
+                print(f"ERROR: Googleスプレッドシートへの接続に失敗: {e}")
+                return None
 
 def _format_row_compatible(sheet, row_index):
     """指定された行に書式を適用する"""
@@ -62,7 +72,7 @@ def append_new_video(sheet, row_data):
         print(f"DEBUG: 書き込み予定データ: {row_data[:3]}...")
         
         # append_rowを実行
-        sheet.append_row(row_data, value_input_option='USER_ENTERED')
+        sheet.append_row(row_data, value_input_option='USER_ENTERED', table_range='A1')
         
         # 書き込み確認
         all_values = sheet.get_all_values()
@@ -110,6 +120,30 @@ def get_all_videos_for_report(sheet):
         print(f"ERROR: 全動画データの取得中にエラー: {e}")
         return []
 
+def _is_rate_limit_error(error: Exception) -> bool:
+    """レート制限エラーかどうかを判定する"""
+    error_str = str(error)
+    return "429" in error_str or "Quota exceeded" in error_str or "RESOURCE_EXHAUSTED" in error_str
+
+
+def _execute_with_backoff(func, max_retries: int = 4, initial_wait: float = 2.0):
+    """指数バックオフ付きでAPI呼び出しを実行する"""
+    import time
+    last_error = None
+    for attempt in range(max_retries + 1):
+        try:
+            return func()
+        except Exception as e:
+            last_error = e
+            if _is_rate_limit_error(e) and attempt < max_retries:
+                wait_time = initial_wait * (2 ** attempt)  # 2s, 4s, 8s, 16s
+                print(f"WARNING: レート制限エラー検出。{wait_time:.0f}秒待機してリトライします... (試行{attempt + 1}/{max_retries})")
+                time.sleep(wait_time)
+            else:
+                raise
+    raise last_error
+
+
 def update_report_data(sheet, col_map, data):
     """動画の統計情報と分析結果をスプレッドシートに上書き更新する"""
     import time
@@ -136,8 +170,10 @@ def update_report_data(sheet, col_map, data):
             tokens_cell_a1 = gspread.utils.rowcol_to_a1(row_num, col_map[tokens_col_name])
             cost_cell_a1 = gspread.utils.rowcol_to_a1(row_num, col_map[cost_col_name])
 
-            # 読み取りを1回のbatch_getで実行
-            cell_values = sheet.batch_get([tokens_cell_a1, cost_cell_a1])
+            # 読み取りを1回のbatch_getで実行（バックオフ付き）
+            cell_values = _execute_with_backoff(
+                lambda: sheet.batch_get([tokens_cell_a1, cost_cell_a1])
+            )
             prev_tokens = int(cell_values[0][0][0] if cell_values[0] and cell_values[0][0] else "0")
             prev_cost_str = cell_values[1][0][0] if cell_values[1] and cell_values[1][0] else "¥0"
             prev_cost = float(prev_cost_str.replace("¥", "").replace(",", ""))
@@ -158,26 +194,17 @@ def update_report_data(sheet, col_map, data):
                 'values': [[new_tokens, f"¥{new_cost:,.2f}"]]
             })
 
-        # バッチ更新を1回で実行 (APIコールを大幅に削減)
-        sheet.batch_update(batch_data, value_input_option='USER_ENTERED')
+        # バッチ更新を1回で実行（指数バックオフ付き）
+        _execute_with_backoff(
+            lambda: sheet.batch_update(batch_data, value_input_option='USER_ENTERED')
+        )
 
-        # レート制限対策: 0.1秒待機
-        time.sleep(0.1)
+        # レート制限対策: 0.5秒待機
+        time.sleep(0.5)
 
         return True
     except Exception as e:
         print(f"ERROR: {row_num}行目の更新中にエラー: {e}")
-        # レート制限エラーの場合、待機してリトライ
-        if "429" in str(e) or "Quota exceeded" in str(e):
-            print(f"WARNING: レート制限エラー検出。10秒待機してリトライします...")
-            time.sleep(10)
-            try:
-                # リトライ
-                sheet.batch_update(batch_data, value_input_option='USER_ENTERED')
-                return True
-            except Exception as retry_error:
-                print(f"ERROR: リトライも失敗: {retry_error}")
-                return False
         return False
 
 def fetch_past_data(sheet):

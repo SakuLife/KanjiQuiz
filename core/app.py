@@ -100,14 +100,16 @@ def flush_info(msg, *args, **kwargs):
             handler.flush()
 logger.info = flush_info
 
-def run_creation_flow(vv_handler, youtube_service):
-    """新しい動画を生成し、YouTubeにアップロード、スプレッドシートに記録するフロー"""
+def run_creation_flow(vv_handler, youtube_service) -> bool:
+    """新しい動画を生成し、YouTubeにアップロード、スプレッドシートに記録するフロー。成功時True、失敗時Falseを返す。"""
     logging.info("--- 漢字クイズ動画 生成フロー開始 ---")
     sheet = get_sheet()
-    if not sheet: return
+    if not sheet:
+        logging.error("スプレッドシートへの接続に失敗しました。")
+        return False
 
     past_data = fetch_past_data(sheet)
-    
+
     # 相対評価分析を実行
     all_videos_data = get_all_videos_for_report(sheet)
     relative_analysis = None
@@ -115,15 +117,15 @@ def run_creation_flow(vv_handler, youtube_service):
         analyzer = PerformanceAnalyzer()
         relative_analysis = analyzer.analyze_relative_performance(all_videos_data)
         logging.info(f"相対評価分析完了: {relative_analysis.get('analyzed_videos_count', 0)}本の動画を分析")
-    
+
     plan_prompt, plan_tokens = generate_next_plan_prompt(past_data, relative_analysis)
     logging.info(f"AIプロデューサーによる改善方針:\n{plan_prompt}")
-    
+
     # 通常版と耐久版の両方を生成
     quiz_data_normal, script_tokens_normal = generate_quiz_script(plan_prompt, past_data, num_questions=10)
-    if not quiz_data_normal or not quiz_data_normal.get("quiz_data"): 
+    if not quiz_data_normal or not quiz_data_normal.get("quiz_data"):
         logging.error("❌ 通常クイズデータの生成に失敗しました。")
-        return
+        return False
     
     # 耐久版クイズデータを生成（横型長尺動画）
     quiz_data_endurance = None
@@ -162,12 +164,12 @@ def run_creation_flow(vv_handler, youtube_service):
     # 通常版音声
     for i, quiz in enumerate(quiz_data["quiz_data"]):
         path_before = f"voice/{base_filename}_q{i+1}_before.wav"
-        if not vv_handler.generate_voice(quiz.get("narration_before", ""), path_before, speaker=13): return
+        if not vv_handler.generate_voice(quiz.get("narration_before", ""), path_before, speaker=13): return False
         path_after = f"voice/{base_filename}_q{i+1}_after.wav"
         narration_after_full = f"{quiz.get('narration_after', '')} {quiz.get('kaisetsu', '')}"
-        if not vv_handler.generate_voice(narration_after_full, path_after, speaker=13): return
+        if not vv_handler.generate_voice(narration_after_full, path_after, speaker=13): return False
     path_outro = f"voice/{base_filename}_outro.wav"
-    if not vv_handler.generate_voice(quiz_data.get("outro_narration", ""), path_outro, speaker=13): return
+    if not vv_handler.generate_voice(quiz_data.get("outro_narration", ""), path_outro, speaker=13): return False
     
     # 耐久版音声生成 (必要に応じて)
     endurance_filename = f"{base_filename}_endurance"
@@ -175,12 +177,12 @@ def run_creation_flow(vv_handler, youtube_service):
         logging.info("耐久版音声生成開始...")
         for i, quiz in enumerate(quiz_data_endurance["quiz_data"]):
             path_before = f"voice/{endurance_filename}_q{i+1}_before.wav"
-            if not vv_handler.generate_voice(quiz.get("narration_before", ""), path_before, speaker=13): return
+            if not vv_handler.generate_voice(quiz.get("narration_before", ""), path_before, speaker=13): return False
             path_after = f"voice/{endurance_filename}_q{i+1}_after.wav"
             narration_after_full = f"{quiz.get('narration_after', '')} {quiz.get('kaisetsu', '')}"
-            if not vv_handler.generate_voice(narration_after_full, path_after, speaker=13): return
+            if not vv_handler.generate_voice(narration_after_full, path_after, speaker=13): return False
         path_outro_endurance = f"voice/{endurance_filename}_outro.wav"
-        if not vv_handler.generate_voice(quiz_data_endurance.get("outro_narration", ""), path_outro_endurance, speaker=13): return
+        if not vv_handler.generate_voice(quiz_data_endurance.get("outro_narration", ""), path_outro_endurance, speaker=13): return False
     
     logging.info("全ナレーションパートの生成完了。")
     
@@ -220,7 +222,7 @@ def run_creation_flow(vv_handler, youtube_service):
         error_msg = f"❌ 通常動画生成に失敗しました。出力ファイルが見つかりません: {video_path}"
         logging.error(error_msg)
         send_discord_notification(f"❌ **通常動画生成失敗**\nテーマ: {theme}", username="動画生成Bot")
-        return
+        return False
     
     # Discord通知: 動画生成完了
     video_size_mb = os.path.getsize(video_path) / (1024 * 1024)
@@ -292,7 +294,7 @@ def run_creation_flow(vv_handler, youtube_service):
         error_msg = f"通常版YouTubeアップロードに失敗しました。動画ファイルは {video_path} に保存されています。"
         logging.error(error_msg)
         print(f"ERROR: {error_msg}")
-        
+
         # Discord通知（アップロード失敗）
         try:
             upload_error_notification = f"⚠️ **通常版アップロード失敗**\n\n" \
@@ -303,7 +305,7 @@ def run_creation_flow(vv_handler, youtube_service):
             send_discord_notification(upload_error_notification)
         except Exception as discord_error:
             logging.warning(f"Discord通知の送信に失敗: {discord_error}")
-        return
+        return False
 
     logging.info("[8/8] スプレッドシート更新中...")
     total_tokens = plan_tokens + script_tokens_normal
@@ -352,6 +354,7 @@ def run_creation_flow(vv_handler, youtube_service):
     logging.info(f"✅ 全処理完了! 総所要時間: {total_duration:.1f}秒 ({total_duration/60:.1f}分)")
     logging.info(f"トークン数: {total_tokens} (¥{yen:.2f})")
     logging.info("--- 漢字クイズ動画 生成フロー完了 ---")
+    return True
 
     # NOTE: 分析フローは run_quiz_bot.bat で別途実行されます
 
@@ -359,14 +362,15 @@ if __name__ == "__main__":
     app_start_time = datetime.datetime.now()
     logging.info("=== 漢字クイズBot 起動 ===")
     logging.info(f"実行開始時刻: {app_start_time.strftime('%Y-%m-%d %H:%M:%S')}")
-    
+
     # Discord通知: 処理開始
     start_message = f"🚀 **漢字クイズBot 処理開始**\n開始時刻: {app_start_time.strftime('%Y-%m-%d %H:%M:%S')}"
     send_discord_notification(start_message, username="処理開始Bot")
-    
+
     youtube_service = None
     vv_handler = VoicevoxHandler(engine_path=VOICEVOX_ENGINE_PATH)
-    
+    creation_success = False
+
     try:
         logging.info("🔐 YouTube APIの認証を開始します...")
         youtube_service = get_authenticated_service()
@@ -375,11 +379,13 @@ if __name__ == "__main__":
         logging.info("✅ YouTube APIの認証に成功しました。")
 
         logging.info("🎤 Voicevoxエンジンの起動を開始します...")
-        if not vv_handler.start_engine(): 
+        if not vv_handler.start_engine():
             raise Exception("Voicevoxエンジンの起動に失敗しました。")
         logging.info("✅ Voicevoxエンジンの起動に成功しました。")
-        
-        run_creation_flow(vv_handler, youtube_service)
+
+        creation_success = run_creation_flow(vv_handler, youtube_service)
+        if not creation_success:
+            logging.error("動画生成フローが失敗しました。")
 
         # 分析レポートはmetrics-collection jobで実行されるためスキップ
         logging.info("--- 分析レポートはmetrics-collection jobに委譲 ---")
@@ -405,13 +411,16 @@ if __name__ == "__main__":
     finally:
         logging.info("🧹 処理が完了したため、クリーンアップします。")
         vv_handler.stop_engine()
-        
+
         app_end_time = datetime.datetime.now()
         app_total_duration = (app_end_time - app_start_time).total_seconds()
-        logging.info(f"🎉 全ての処理が完了しました。総実行時間: {app_total_duration:.1f}秒 ({app_total_duration/60:.1f}分)")
+        logging.info(f"総実行時間: {app_total_duration:.1f}秒 ({app_total_duration/60:.1f}分)")
         logging.info(f"終了時刻: {app_end_time.strftime('%Y-%m-%d %H:%M:%S')}")
         logging.info("=== 漢字クイズBot 終了 ===")
-        
+
         # Discord通知: 全処理完了
-        complete_message = f"🎉 **全処理完了**\n実行時間: {app_total_duration/60:.1f}分\n終了時刻: {app_end_time.strftime('%Y-%m-%d %H:%M:%S')}"
+        status_emoji = "✅" if creation_success else "❌"
+        complete_message = f"{status_emoji} **動画生成{'成功' if creation_success else '失敗'}**\n実行時間: {app_total_duration/60:.1f}分\n終了時刻: {app_end_time.strftime('%Y-%m-%d %H:%M:%S')}"
         send_discord_notification(complete_message, username="完了通知Bot")
+
+    sys.exit(0 if creation_success else 1)
