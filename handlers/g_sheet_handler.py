@@ -195,8 +195,11 @@ def update_report_data(sheet, col_map, data):
             })
 
         # バッチ更新を1回で実行（指数バックオフ付き）
+        # NOTE: gspreadのbatch_updateはrangeにシート名をin-placeで付加するため、
+        # リトライ時に重複しないようdeep copyして渡す
+        import copy
         _execute_with_backoff(
-            lambda: sheet.batch_update(batch_data, value_input_option='USER_ENTERED')
+            lambda: sheet.batch_update(copy.deepcopy(batch_data), value_input_option='USER_ENTERED')
         )
 
         # レート制限対策: 0.5秒待機
